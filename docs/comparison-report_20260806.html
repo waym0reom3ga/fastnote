@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FastNotes Cross-Technology Benchmark Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: #020617;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 40px;
+  }
+  h1 { font-size: 24px; color: #f8fafc; margin-bottom: 4px; }
+  h2 { font-size: 16px; color: #94a3b8; margin-bottom: 32px; font-weight: 400; }
+  .subtitle { color: #64748b; font-size: 12px; margin-bottom: 40px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; margin-bottom: 40px; }
+  .card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 24px;
+  }
+  .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card-title { font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+  .bar-chart { display: flex; flex-direction: column; gap: 8px; }
+  .bar-row { display: flex; align-items: center; gap: 12px; }
+  .bar-label { width: 140px; font-size: 11px; color: #cbd5e1; text-align: right; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 22px; background: #1e293b; border-radius: 4px; overflow: hidden; position: relative; }
+  .bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; font-size: 10px; color: #fff; font-weight: 700; min-width: 40px; }
+  .bar-value { width: 80px; font-size: 11px; color: #94a3b8; text-align: right; flex-shrink: 0; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { text-align: left; color: #64748b; padding: 8px 12px; border-bottom: 1px solid #1e293b; font-weight: 400; text-transform: uppercase; letter-spacing: 1px; }
+  td { padding: 8px 12px; border-bottom: 1px solid #0f172a; color: #cbd5e1; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+  .badge-green { background: rgba(52,211,153,0.15); color: #34d399; }
+  .badge-amber { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .badge-red { background: rgba(251,113,133,0.15); color: #fb7185; }
+  .badge-blue { background: rgba(34,211,238,0.15); color: #22d3ee; }
+  .badge-purple { background: rgba(167,139,250,0.15); color: #a78bfa; }
+  .badge-orange { background: rgba(251,146,60,0.15); color: #fb923c; }
+  .summary-row { display: flex; gap: 24px; margin-bottom: 40px; flex-wrap: wrap; }
+  .stat { background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 20px 24px; flex: 1; min-width: 180px; }
+  .stat-value { font-size: 28px; font-weight: 700; }
+  .stat-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #94a3b8; }
+  .legend-swatch { width: 12px; height: 12px; border-radius: 2px; }
+  .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #1e293b; font-size: 10px; color: #475569; }
+</style>
+</head>
+<body>
+
+<div style="border:3px solid #b00; background:#fff3f3; color:#600; padding:16px 20px; margin:0 0 24px 0; font-family:sans-serif; line-height:1.5;">
+<strong style="font-size:1.2em; display:block; margin-bottom:8px;">HISTORIC ARTIFACT &mdash; RETAINED AS EVIDENCE, NOT AS RESULTS</strong>
+<p style="margin:8px 0;">Superseded 2026-08-07. <strong>Every figure below is invalid.</strong> This report was generated from a
+test suite that did not test the applications. The "35/35 passed" results were produced by tests that exercise only the
+model, renderer and exporter libraries &mdash; the layers that were already correct. No test in the suite ever
+constructed a GUI widget or simulated a user action.</p>
+<p style="margin:8px 0;">The UI-layer tests (24&ndash;28) were tautological. Representative example:
+<code>ASSERT(app-&gt;editor_text != NULL)</code> where <code>editor_text</code> is a fixed-size array inside a
+<code>calloc</code>'d struct &mdash; an assertion that cannot fail at runtime.</p>
+<p style="margin:8px 0;">Verified at time of supersession: <strong>0 of 11 ports could open an arbitrary file</strong>
+(no file-open dialog existed anywhere in the repository); <strong>only 2 of 11 wrote an export file to disk</strong>;
+<strong>3 ports produced no runnable binary at all</strong>; and the 4 Python "ports" were a single headless library
+cloned four times with no GUI toolkit imported and no entry point.</p>
+<p style="margin:8px 0 0 0;">See <code>FASTNOTE_SPECIFICATION.md</code> and <code>fastnote_testing_protocol.md</code>
+for the corrected specification and the acceptance criteria that replaced this measurement.</p>
+</div>
+
+<h1>FastNotes Cross-Technology Benchmark Report</h1>
+<h2>11 GUI framework editions compared on identical 35-test protocol</h2>
+<p class="subtitle">Generated 2026-08-06 | All tests verified live | Canonical protocol: 6 categories, 35 tests</p>
+
+<!-- Summary Stats -->
+<div class="summary-row">
+  <div class="stat">
+    <div class="stat-value" style="color:#22d3ee">11</div>
+    <div class="stat-label">Editions Built</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" style="color:#34d399">385</div>
+    <div class="stat-label">Total Tests Passed</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" style="color:#a78bfa">6</div>
+    <div class="stat-label">Languages</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" style="color:#fbbf24">0.08s</div>
+    <div class="stat-label">Fastest Suite (C)</div>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background:#22d3ee"></div>Go</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#a78bfa"></div>Rust</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#34d399"></div>C</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#fbbf24"></div>Python</div>
+</div>
+
+<!-- Test Timing -->
+<div class="grid">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-dot" style="background:#22d3ee"></div>
+      <div class="card-title">Test Suite Wall Time (seconds)</div>
+    </div>
+    <div class="bar-chart">
+      <div class="bar-row">
+        <div class="bar-label">C/GTK4</div>
+        <div class="bar-track"><div class="bar-fill" style="width:1.6%;background:linear-gradient(90deg,#34d399,#059669)">0.08s</div></div>
+        <div class="bar-value">35 tests</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">C/Nuklear</div>
+        <div class="bar-track"><div class="bar-fill" style="width:1.8%;background:linear-gradient(90deg,#34d399,#059669)">0.09s</div></div>
+        <div class="bar-value">35 tests</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">C/RayGUI</div>
+        <div class="bar-track"><div class="bar-fill" style="width:1.8%;background:linear-gradient(90deg,#34d399,#059669)">0.09s</div></div>
+        <div class="bar-value">35 tests</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Go/Gio</div>
+        <div class="bar-track"><div class="bar-fill" style="width:37.4%;background:linear-gradient(90deg,#22d3ee,#0891b2)">1.87s</div></div>
+        <div class="bar-value">35 tests</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Python/PyQt6</div>
+        <div class="bar-track"><div class="bar-fill" style="width:60.6%;background:linear-gradient(90deg,#fbbf24,#d97706)">3.01s</div></div>
+        <div class="bar-value">35 tests</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Python/DearPyGui</div>
+        <div class="bar-track"><div class="bar-fill" style="width:60.6%;background:linear-gradient(90deg,#fbbf24,#d97706)">3.03s</div></div>
+        <div class="bar-value">35 tests</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Python/GTK4</div>
+        <div class="bar-track"><div class="bar-fill" style="width:61.6%;background:linear-gradient(90deg,#fbbf24,#d97706)">3.07s</div></div>
+        <div class="bar-value">35 tests</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Python/PySide6</div>
+        <div class="bar-track"><div class="bar-fill" style="width:61.6%;background:linear-gradient(90deg,#fbbf24,#d97706)">3.08s</div></div>
+        <div class="bar-value">35 tests</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Go/Fyne</div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,#22d3ee,#0891b2)">4.97s</div></div>
+        <div class="bar-value">30 tests</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Test count per category -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-dot" style="background:#fb923c"></div>
+      <div class="card-title">Tests Per Category (all editions)</div>
+    </div>
+    <div class="bar-chart">
+      <div class="bar-row">
+        <div class="bar-label">Model</div>
+        <div class="bar-track"><div class="bar-fill" style="width:23%;background:linear-gradient(90deg,#fb923c,#ea580c)">8</div></div>
+        <div class="bar-value">I/O, search, settings</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Renderer</div>
+        <div class="bar-track"><div class="bar-fill" style="width:34%;background:linear-gradient(90deg,#fb923c,#ea580c)">12</div></div>
+        <div class="bar-value">Markdown, TOC, math</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Export</div>
+        <div class="bar-track"><div class="bar-fill" style="width:9%;background:linear-gradient(90deg,#fb923c,#ea580c)">3</div></div>
+        <div class="bar-value">HTML, dark mode</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">UI Layer</div>
+        <div class="bar-track"><div class="bar-fill" style="width:14%;background:linear-gradient(90deg,#fb923c,#ea580c)">5</div></div>
+        <div class="bar-value">App init, editor</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Edge Cases</div>
+        <div class="bar-track"><div class="bar-fill" style="width:14%;background:linear-gradient(90deg,#fb923c,#ea580c)">5</div></div>
+        <div class="bar-value">Empty, large, unicode</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Integration</div>
+        <div class="bar-track"><div class="bar-fill" style="width:6%;background:linear-gradient(90deg,#fb923c,#ea580c)">2</div></div>
+        <div class="bar-value">E2E workflow, search</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Full comparison table -->
+<div class="card" style="margin-bottom:40px">
+  <div class="card-header">
+    <div class="card-dot" style="background:#22d3ee"></div>
+    <div class="card-title">Complete Edition Comparison</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Edition</th>
+          <th>Language</th>
+          <th>Framework</th>
+          <th>Tests</th>
+          <th>Wall Time</th>
+          <th>Avg/Test</th>
+          <th>Release Binary</th>
+          <th>Source LOC</th>
+          <th>Paradigm</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-green">C/Nuklear</span></td>
+          <td>C99</td>
+          <td>Nuklear + GLFW</td>
+          <td>35/35</td>
+          <td>0.09s</td>
+          <td>2.6ms</td>
+          <td>NOT BUILT</td>
+          <td>1,586</td>
+          <td>Immediate</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-green">C/GTK4</span></td>
+          <td>C99</td>
+          <td>GTK4 4.22</td>
+          <td>35/35</td>
+          <td>0.08s</td>
+          <td>2.3ms</td>
+          <td>NOT BUILT</td>
+          <td>1,531</td>
+          <td>Retained</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-green">C/RayGUI</span></td>
+          <td>C99</td>
+          <td>RayGUI + Raylib</td>
+          <td>35/35</td>
+          <td>0.09s</td>
+          <td>2.6ms</td>
+          <td>NOT BUILT</td>
+          <td>1,531</td>
+          <td>Immediate</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-purple">Rust/GTK4</span></td>
+          <td>Rust</td>
+          <td>gtk4-rs 0.9</td>
+          <td>33/33</td>
+          <td>0.28s</td>
+          <td>8.5ms</td>
+          <td>666KB</td>
+          <td>1,000</td>
+          <td>Retained</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-purple">Rust/egui</span></td>
+          <td>Rust</td>
+          <td>egui 0.31</td>
+          <td>33/33</td>
+          <td>0.56s</td>
+          <td>17ms</td>
+          <td>13MB</td>
+          <td>1,077</td>
+          <td>Immediate</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-purple">Rust/Slint</span></td>
+          <td>Rust</td>
+          <td>Slint 1.17</td>
+          <td>33/33</td>
+          <td>0.97s</td>
+          <td>29ms</td>
+          <td>30MB</td>
+          <td>1,097</td>
+          <td>DSL + Retained</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-blue">Go/Gio</span></td>
+          <td>Go</td>
+          <td>Gio</td>
+          <td>35</td>
+          <td>1.87s</td>
+          <td>53ms</td>
+          <td>NOT BUILT</td>
+          <td>2,069</td>
+          <td>Immediate</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-blue">Go/Fyne</span></td>
+          <td>Go</td>
+          <td>Fyne v2.8</td>
+          <td>30</td>
+          <td>4.97s</td>
+          <td>166ms</td>
+          <td>NOT BUILT</td>
+          <td>3,490</td>
+          <td>Retained</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-amber">Python/PyQt6</span></td>
+          <td>Python 3.14</td>
+          <td>PyQt6</td>
+          <td>35/35</td>
+          <td>3.01s</td>
+          <td>86ms</td>
+          <td>N/A (script)</td>
+          <td>564</td>
+          <td>Retained</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-amber">Python/DearPyGui</span></td>
+          <td>Python 3.14</td>
+          <td>DearPyGui 2.3</td>
+          <td>35/35</td>
+          <td>3.03s</td>
+          <td>87ms</td>
+          <td>N/A (script)</td>
+          <td>564</td>
+          <td>Immediate</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-amber">Python/GTK4</span></td>
+          <td>Python 3.14</td>
+          <td>PyGObject GTK4</td>
+          <td>35/35</td>
+          <td>3.07s</td>
+          <td>88ms</td>
+          <td>N/A (script)</td>
+          <td>564</td>
+          <td>Retained</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-amber">Python/PySide6</span></td>
+          <td>Python 3.14</td>
+          <td>PySide6</td>
+          <td>35/35</td>
+          <td>3.08s</td>
+          <td>88ms</td>
+          <td>N/A (script)</td>
+          <td>564</td>
+          <td>Retained</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Speed tiers -->
+<div class="grid">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-dot" style="background:#34d399"></div>
+      <div class="card-title">Speed Tiers (wall time per test)</div>
+    </div>
+    <div class="bar-chart">
+      <div class="bar-row">
+        <div class="bar-label">Tier 1: C</div>
+        <div class="bar-track"><div class="bar-fill" style="width:1%;background:linear-gradient(90deg,#34d399,#059669)">2.3-2.6ms</div></div>
+        <div class="bar-value">Nuklear, GTK4, RayGUI</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Tier 2: Rust</div>
+        <div class="bar-track"><div class="bar-fill" style="width:11%;background:linear-gradient(90deg,#a78bfa,#7c3aed)">8.5-29ms</div></div>
+        <div class="bar-value">GTK4, egui, Slint</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Tier 3: Go/Gio</div>
+        <div class="bar-track"><div class="bar-fill" style="width:53%;background:linear-gradient(90deg,#22d3ee,#0891b2)">53ms</div></div>
+        <div class="bar-value">Immediate mode</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Tier 4: Python</div>
+        <div class="bar-track"><div class="bar-fill" style="width:86%;background:linear-gradient(90deg,#fbbf24,#d97706)">86-88ms</div></div>
+        <div class="bar-value">All 4 Python editions</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Tier 5: Go/Fyne</div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,#22d3ee,#0891b2)">166ms</div></div>
+        <div class="bar-value">Retained + headless UI</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Binary size -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-dot" style="background:#a78bfa"></div>
+      <div class="card-title">Release Binary Size (built editions only)</div>
+    </div>
+    <div class="bar-chart">
+      <div class="bar-row">
+        <div class="bar-label">Rust/GTK4</div>
+        <div class="bar-track"><div class="bar-fill" style="width:2%;background:linear-gradient(90deg,#a78bfa,#7c3aed)">666KB</div></div>
+        <div class="bar-value">Smallest</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Rust/egui</div>
+        <div class="bar-track"><div class="bar-fill" style="width:43%;background:linear-gradient(90deg,#a78bfa,#7c3aed)">13MB</div></div>
+        <div class="bar-value"></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Rust/Slint</div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,#a78bfa,#7c3aed)">30MB</div></div>
+        <div class="bar-value">Largest</div>
+      </div>
+    </div>
+    <div style="margin-top:16px;font-size:10px;color:#64748b">
+      Only Rust editions have release binaries built. C/Go release binaries were not built (UI backends require display context). Python editions are interpreted scripts.
+    </div>
+  </div>
+</div>
+
+<!-- Source code size -->
+<div class="card" style="margin-bottom:40px">
+  <div class="card-header">
+    <div class="card-dot" style="background:#fb7185"></div>
+    <div class="card-title">Source Code Size (Lines of Code)</div>
+  </div>
+  <div class="bar-chart">
+    <div class="bar-row">
+      <div class="bar-label">Python/*</div>
+      <div class="bar-track"><div class="bar-fill" style="width:16%;background:linear-gradient(90deg,#fbbf24,#d97706)">564</div></div>
+      <div class="bar-value">Most concise</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Rust/GTK4</div>
+      <div class="bar-track"><div class="bar-fill" style="width:30%;background:linear-gradient(90deg,#a78bfa,#7c3aed)">1,000</div></div>
+      <div class="bar-value"></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Rust/egui</div>
+      <div class="bar-track"><div class="bar-fill" style="width:32%;background:linear-gradient(90deg,#a78bfa,#7c3aed)">1,077</div></div>
+      <div class="bar-value"></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Rust/Slint</div>
+      <div class="bar-track"><div class="bar-fill" style="width:32%;background:linear-gradient(90deg,#a78bfa,#7c3aed)">1,097</div></div>
+      <div class="bar-value"></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">C/GTK4</div>
+      <div class="bar-track"><div class="bar-fill" style="width:46%;background:linear-gradient(90deg,#34d399,#059669)">1,531</div></div>
+      <div class="bar-value"></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">C/RayGUI</div>
+      <div class="bar-track"><div class="bar-fill" style="width:46%;background:linear-gradient(90deg,#34d399,#059669)">1,531</div></div>
+      <div class="bar-value"></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">C/Nuklear</div>
+      <div class="bar-track"><div class="bar-fill" style="width:48%;background:linear-gradient(90deg,#34d399,#059669)">1,586</div></div>
+      <div class="bar-value"></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Go/Gio</div>
+      <div class="bar-track"><div class="bar-fill" style="width:60%;background:linear-gradient(90deg,#22d3ee,#0891b2)">2,069</div></div>
+      <div class="bar-value"></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Go/Fyne</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,#22d3ee,#0891b2)">3,490</div></div>
+      <div class="bar-value">Most verbose</div>
+    </div>
+  </div>
+</div>
+
+<!-- Key findings -->
+<div class="card" style="margin-bottom:40px">
+  <div class="card-header">
+    <div class="card-dot" style="background:#fb7185"></div>
+    <div class="card-title">Key Findings</div>
+  </div>
+  <div style="font-size:12px;line-height:1.8;color:#cbd5e1">
+    <p><strong style="color:#34d399">Fastest: C.</strong> All 3 C editions (Nuklear, GTK4, RayGUI) run in ~0.08-0.09s. Compiled ahead-of-time, minimal runtime overhead.</p>
+    <p style="margin-top:8px"><strong style="color:#a78bfa">Rust is 10-30x slower than C on test startup.</strong> Rust/GTK4 at 0.28s, Rust/egui at 0.56s, Rust/Slint at 0.97s. This is dominated by test harness startup (cargo test), not the actual test execution (0.01s reported by cargo).</p>
+    <p style="margin-top:8px"><strong style="color:#22d3ee">Go split is real.</strong> Go/Gio (1.87s) vs Go/Fyne (4.97s). Fyne's headless UI test driver adds overhead from screenshot capture and widget tree rendering. Gio tests are pure unit tests.</p>
+    <p style="margin-top:8px"><strong style="color:#fbbf24">Python editions are identical.</strong> All 4 Python editions (GTK4, PyQt6, PySide6, DearPyGui) run at 3.01-3.08s. The bottleneck is Python interpreter + pytest startup, not the GUI framework. The model/renderer/exporter layers are literally the same files.</p>
+    <p style="margin-top:8px"><strong style="color:#a78bfa">Smallest binary: Rust/GTK4 at 666KB.</strong> Dynamic linking to system GTK4. Rust/Slint at 30MB bundles its own renderer. Only Rust editions have release binaries built.</p>
+    <p style="margin-top:8px"><strong style="color:#fb923c">Most concise: Python at 564 LOC.</strong> Go/Fyne at 3,490 LOC is 6x more verbose. Python benefits from shared framework-independent layers.</p>
+    <p style="margin-top:8px"><strong style="color:#fb7185">C release binaries NOT built.</strong> The main app binaries (fastnote) were not built for C editions because they require display context (GLFW/GTK4/Raylib). Only test binaries exist (61KB each).</p>
+  </div>
+</div>
+
+<div class="footer">
+  FastNotes Benchmark Report | 11 editions | 385 tests | All verified live 2026-08-06 | Protocol: fastnote_testing_protocol.md
+</div>
+
+</body>
+</html>
