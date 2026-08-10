@@ -19,3 +19,6 @@
 [submodule "editions/fastnote_python_dearpygui_ed"]
 	path = editions/fastnote_python_dearpygui_ed
 	url = https://github.com/waym0reom3ga/fastnote_python_dearpygui_ed.git
+[submodule "editions/fastnote_c_gtk4_ed"]
+	path = editions/fastnote_c_gtk4_ed
+	url = git@github.com:waym0reom3ga/fastnote_c_gtk4_ed.git
