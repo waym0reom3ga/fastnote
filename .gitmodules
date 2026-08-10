@@ -22,3 +22,15 @@
 [submodule "editions/fastnote_c_gtk4_ed"]
 	path = editions/fastnote_c_gtk4_ed
 	url = git@github.com:waym0reom3ga/fastnote_c_gtk4_ed.git
+[submodule "editions/fastnote_c_raygui_ed"]
+	path = editions/fastnote_c_raygui_ed
+	url = git@github.com:waym0reom3ga/fastnote_c_raygui_ed.git
+[submodule "editions/fastnote_rust_egui_ed"]
+	path = editions/fastnote_rust_egui_ed
+	url = git@github.com:waym0reom3ga/fastnote_rust_egui_ed.git
+[submodule "editions/fastnote_rust_gtk4_ed"]
+	path = editions/fastnote_rust_gtk4_ed
+	url = git@github.com:waym0reom3ga/fastnote_rust_gtk4_ed.git
+[submodule "editions/fastnote_rust_slint_ed"]
+	path = editions/fastnote_rust_slint_ed
+	url = git@github.com:waym0reom3ga/fastnote_rust_slint_ed.git
