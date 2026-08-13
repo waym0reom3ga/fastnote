@@ -34,3 +34,6 @@
 [submodule "editions/fastnote_rust_slint_ed"]
 	path = editions/fastnote_rust_slint_ed
 	url = git@github.com:waym0reom3ga/fastnote_rust_slint_ed.git
+[submodule "editions/fastnote_go_wails3_ed"]
+	path = editions/fastnote_go_wails3_ed
+	url = git@github.com:waym0reom3ga/fastnote_go_wails3_ed.git
