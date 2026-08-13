@@ -170,20 +170,12 @@ to FR-2, never a substitute for it**.
 FastNote requires file selection in three places (FR-2 Open, FR-6 Save As, FR-7/8 Export
 destination). This is specified as a single reusable component.
 
-### 3.1 Native dialogs are prohibited
+### 3.1 POSIX compliance
 
-Implementations MUST NOT use the host platform's native file dialog
-(`GtkFileChooser`, `QFileDialog`, `rfd`, `tinyfiledialogs`, `gioui.org/x/explorer`, or
-equivalent). The browser MUST be built from the port's own GUI toolkit primitives.
-
-**Rationale.** This project exists to measure the cost of GUI technologies. A native dialog
-imports an entire foreign toolkit into the process, distorting binary size and peak resident
-memory — the exact quantities under measurement. If one port links `rfd` and another draws
-its own list, the comparison measures dialog backends rather than the toolkits under test.
-
-The secondary benefit is that the file browser is the single most informative component in
-the whole comparison: implementing it exercises scrollable lists, dynamic layout, text input,
-click handling, and keyboard focus simultaneously. It is a better benchmark than the editor.
+The file browser MUST use POSIX-compliant filesystem operations (`opendir`/`readdir`,
+`stat`, `open`, `read`, `write`, or equivalent standard library abstractions). No
+requirement is placed on the presentation layer: native platform dialogs, toolkit-native
+file pickers, and custom-built browsers are all acceptable.
 
 ### 3.2 Required behaviour
 
@@ -379,3 +371,7 @@ Recorded so that progress is measured against reality.
 
 All twelve ports now satisfy FR-1 through FR-9 and pass all thirteen acceptance tests.
 FR-2, the gap that defined this project for a month, is closed everywhere.
+
+## 10. Change log
+
+- 2026-08-11: §3.1 rewritten. Native dialogs are no longer banned. The only requirement is POSIX-compliant filesystem operations. Presentation layer is up to each port.
