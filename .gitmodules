@@ -37,3 +37,6 @@
 [submodule "editions/fastnote_go_wails3_ed"]
 	path = editions/fastnote_go_wails3_ed
 	url = git@github.com:waym0reom3ga/fastnote_go_wails3_ed.git
+[submodule "editions/fastnote_go_gtk4_ed"]
+	path = editions/fastnote_go_gtk4_ed
+	url = git@github.com:waym0reom3ga/fastnote_go_gtk4_ed.git
