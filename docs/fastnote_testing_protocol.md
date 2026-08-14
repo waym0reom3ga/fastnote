@@ -74,9 +74,10 @@ prove the product works. The library code still exists in each edition and is st
 exercised, but through the real interface and the real files it produces, never as a
 separate unit suite with its own claims.
 
-All thirteen tests are executed by the shared harness `tools/qa/suite.py` against each
-edition's **built binary**, launched under a display, driven by keyboard, and verified by
-what lands on disk and in the window title.
+All thirteen behavioural tests, plus the mandatory sabotage validation
+(case A14 below), are executed by the shared harness `tools/qa/suite.py`
+against each edition's **built binary**, launched under a display, driven by
+keyboard, and verified by what lands on disk and in the window title.
 
 A port failing any Category 7 test is incomplete regardless of anything else that builds or
 passes.
@@ -96,6 +97,7 @@ passes.
 | A11 | `AcceptExportWiring` | Static inspection of UI sources | Export control present, accelerator bound, and the handler reaches a filesystem write | FR-7 |
 | A12 | `AcceptBrowserKeyboard` | Static + runtime inspection | A file-selection mechanism exists (in-app browser over POSIX operations, or a native dialog), with a path field reachable via `Ctrl+L` and confirm/cancel via `Enter`/`Escape` | FR-2 |
 | A13 | `AcceptCloseDirty` | Make the document dirty (A04), then request a WM close | Either a prompt appears (window stays open) or the document is saved; never silently discarded | FR-9 |
+| A14 | `AcceptSabotageValidation` | Run the edition's GUI event suite as shipped, then under `FASTNOTE_SABOTAGE=1` | Passes as shipped; fails with a control unbound | FR-2,3,5,7 |
 
 ### The event-file rule (A03, A05–A09)
 

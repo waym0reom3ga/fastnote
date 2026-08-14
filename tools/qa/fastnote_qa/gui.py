@@ -1,6 +1,16 @@
-"""GUI session driver. Launches the edition's real binary, waits for its real
-window, reads its published control map, and performs real input. No headless
-mode is ever used; if the edition cannot show a window, the case fails."""
+"""GUI session driver. Launches the edition's real binary with --event-file,
+waits for its real window, and performs real input through the keyboard. No
+headless mode is ever used; if the edition cannot show a window, the case
+fails.
+
+The edition publishes phase completions by appending one line per marker to
+the event file (spec 5.1). The harness waits for a marker before asserting on
+disk state or timing an operation. All user-facing actions are driven with the
+standard accelerators (spec FR-11) and the browser keyboard contract (spec
+3.2): Ctrl+O open, Ctrl+L focus path, type path, Enter confirm, Escape cancel,
+Ctrl+S save, Ctrl+Shift+S save-as, Ctrl+E export HTML, Ctrl+Shift+E export
+PDF. No coordinates, no control maps.
+"""
 
 import os
 import shutil
@@ -11,19 +21,22 @@ from pathlib import Path
 
 from . import x11
 
-LABEL_ALIASES = {
-    "open": ["Open"],
-    "save": ["Save"],
-    "save_as": ["SaveAs", "Save As"],
-    "export_html": ["Export", "ExportHTML", "Export Html", "Export HTML"],
-    "export_pdf": ["ExportPdf", "Export PDF"],
-    "theme": ["Theme"],
-    "editor": ["editor"],
-    "path": ["path", "PathInput"],
-    "ok": ["ok", "Ok", "OK", "confirm"],
-    "cancel": ["cancel", "Cancel"],
-    "up": ["up", "Up", ".."],
-}
+EVENT_PAINTED = "painted"
+EVENT_OPEN = "open"
+EVENT_SAVE = "save"
+EVENT_SAVE_AS = "save-as"
+EVENT_EXPORT_HTML = "export-html"
+EVENT_EXPORT_PDF = "export-pdf"
+
+# Canonical accelerators (spec FR-11).
+ACCEL_OPEN = "ctrl+o"
+ACCEL_SAVE = "ctrl+s"
+ACCEL_SAVE_AS = "ctrl+shift+s"
+ACCEL_EXPORT_HTML = "ctrl+e"
+ACCEL_EXPORT_PDF = "ctrl+shift+e"
+ACCEL_FOCUS_PATH = "ctrl+l"
+ACCEL_CONFIRM = "Return"
+ACCEL_CANCEL = "Escape"
 
 
 class GuiSession:
@@ -33,26 +46,19 @@ class GuiSession:
         self.notes_dir = notes_dir
         self.proc = None
         self.wid = None
-        self.controls = {}
-        self.map_style = entry["instrumentation"]
+        self.events = None        # Path; set when event_file is requested
         self.ready = self.work / "ready"
-        self.map_path = self.work / "controls.tsv"
 
     # -- lifecycle ---------------------------------------------------------
 
-    def start(self, ready_timeout=30.0):
+    def start(self, event_file=False, ready_timeout=30.0):
         d = Path(self.entry["path"])
         env = dict(os.environ)
         env["FASTNOTE_CONFIG_DIR"] = str(self.work / "cfg")
-        if self.map_style == "flag":
-            cmd = [str(d / self.entry["binary"]), "--notes-dir", str(self.notes_dir),
-                   "--control-map", str(self.map_path), "--ready-file", str(self.ready)]
-        elif self.map_style == "env":
-            env["FASTNOTE_CONTROL_MAP"] = str(self.map_path)
-            env["FASTNOTE_READY_FILE"] = str(self.ready)
-            cmd = [str(d / self.entry["binary"]), "--notes-dir", str(self.notes_dir)]
-        else:
-            cmd = [str(d / self.entry["binary"]), "--notes-dir", str(self.notes_dir)]
+        cmd = [str(d / self.entry["binary"])]
+        if event_file:
+            self.events = self.work / "events.txt"
+            cmd += ["--event-file", str(self.events)]
         self.proc = subprocess.Popen(cmd, cwd=d, env=env, start_new_session=True,
                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         return self
@@ -95,13 +101,25 @@ class GuiSession:
         self.wid = x11.find_window(self.entry["title"], timeout=timeout)
         return self.wid is not None
 
-    def wait_ready(self, timeout=20.0):
+    def wait_event(self, marker, timeout=20.0):
+        """Wait until the edition has appended the phase marker to its event
+        file. Returns True when seen, False on timeout."""
+        if self.events is None or not self.events.exists():
+            return False
         deadline = time.time() + timeout
         while time.time() < deadline:
-            if self.ready.exists():
+            try:
+                text = self.events.read_text()
+            except OSError:
+                text = ""
+            if any(line.strip() == marker for line in text.splitlines()):
                 return True
             time.sleep(0.05)
         return False
+
+    def wait_ready(self, timeout=20.0):
+        """First painted frame, signalled by the 'painted' marker."""
+        return self.wait_event(EVENT_PAINTED, timeout)
 
     def wait_title_contains(self, substr, timeout=10.0):
         deadline = time.time() + timeout
@@ -125,49 +143,18 @@ class GuiSession:
             time.sleep(stable_interval)
         return False
 
-    # -- control map -------------------------------------------------------
+    # -- keyboard-driven actions -------------------------------------------
 
-    def load_control_map(self):
-        self.controls = {}
-        if not self.map_path.exists():
-            return False
-        for line in self.map_path.read_text().splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            parts = line.split("\t")
-            if len(parts) != 5:
-                continue
-            try:
-                self.controls[parts[0]] = tuple(int(v) for v in parts[1:])
-            except ValueError:
-                continue
-        return bool(self.controls)
-
-    def rect(self, canonical):
-        """Resolve a canonical control name against the published map."""
-        for alias in LABEL_ALIASES.get(canonical, [canonical]):
-            if alias in self.controls:
-                return self.controls[alias]
-        return None
-
-    def has(self, canonical):
-        return self.rect(canonical) is not None
-
-    def click_point(self, canonical):
-        rect = self.rect(canonical)
-        if not rect:
-            return None
-        x, y, w, h = rect
-        if w <= 200:
-            return x + w // 2, y + h // 2
-        return x + 12, y + min(h // 2, 16)
-
-    def click(self, canonical, settle=True):
-        pt = self.click_point(canonical)
-        if not pt:
-            return False
+    def press(self, accel, settle=0.3):
+        """Press a canonical accelerator and let the window respond."""
+        x11.key(accel)
         if settle:
-            x11.window_settled(self.wid)
-        x11.click_at(self.wid, pt[0], pt[1])
-        return True
+            time.sleep(settle)
+
+    def open_path(self, path, settle=0.3):
+        """The full open gesture: Ctrl+O, Ctrl+L, type the path, Enter."""
+        self.press(ACCEL_OPEN, settle=settle)
+        self.press(ACCEL_FOCUS_PATH, settle=settle)
+        x11.type_text(str(path))
+        time.sleep(settle)
+        self.press(ACCEL_CONFIRM, settle=0)

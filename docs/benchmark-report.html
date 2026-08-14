@@ -3,94 +3,87 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FastNote Go Editions Benchmark</title>
+<title>FastNote Cross-Technology Comparative Tableau</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'JetBrains Mono',monospace;background:#020617;color:#e2e8f0;padding:40px}
 h1{font-size:24px;color:#f8fafc;margin-bottom:4px}
-h2{font-size:16px;color:#94a3b8;margin-bottom:32px;font-weight:400}
-.sub{color:#64748b;font-size:12px;margin-bottom:40px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;margin-bottom:40px}
-.card{background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:24px}
-.ch{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+h2{font-size:16px;color:#94a3b8;margin-bottom:12px;font-weight:400}
+.sub{color:#64748b;font-size:12px;margin-bottom:24px}
+.warn{background:#7f1d1d22;border:1px solid #7f1d1d;color:#fca5a5;padding:12px 16px;border-radius:8px;font-size:12px;margin-bottom:24px}
+.stats{display:flex;gap:16px;margin-bottom:32px;flex-wrap:wrap}
+.st{background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:16px 20px;flex:1;min-width:150px}
+.sv{font-size:22px;font-weight:700}
+.sl{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+.card{background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:20px}
+.ch{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .cd{width:8px;height:8px;border-radius:50%}
-.ct{font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px}
+.ct{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;margin-bottom:32px}
 .bar-row{display:flex;align-items:center;gap:12px;margin:4px 0}
-.bl{width:80px;font-size:11px;color:#cbd5e1;text-align:right;flex-shrink:0}
-.bt{flex:1;height:22px;background:#1e293b;border-radius:4px;overflow:hidden}
-.bf{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:10px;color:#fff;font-weight:700;min-width:50px}
+.bl{width:110px;font-size:11px;color:#cbd5e1;text-align:right;flex-shrink:0}
+.bt{flex:1;height:20px;background:#1e293b;border-radius:4px;overflow:hidden}
+.bf{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:10px;color:#fff;font-weight:700;min-width:46px}
 table{width:100%;border-collapse:collapse;font-size:11px}
-th{text-align:left;color:#64748b;padding:8px 12px;border-bottom:1px solid #1e293b;font-weight:400;text-transform:uppercase;letter-spacing:1px}
-td{padding:8px 12px;border-bottom:1px solid #0f172a;color:#cbd5e1}
+th{text-align:left;color:#64748b;padding:8px 10px;border-bottom:1px solid #1e293b;font-weight:400;text-transform:uppercase;letter-spacing:1px}
+td{padding:8px 10px;border-bottom:1px solid #0f172a;color:#cbd5e1}
 tr:hover td{background:rgba(255,255,255,.02)}
 .b{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
 .b-g{background:rgba(52,211,153,.15);color:#34d399}
 .b-r{background:rgba(251,113,133,.15);color:#fb7185}
-.stats{display:flex;gap:24px;margin-bottom:40px;flex-wrap:wrap}
-.st{background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:20px 24px;flex:1;min-width:180px}
-.sv{font-size:28px;font-weight:700}
-.sl{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
-.twrap{overflow-x:auto;margin-bottom:40px}
-.notes{background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:16px 20px;margin-bottom:40px;font-size:11px;color:#94a3b8}
-.notes li{margin:4px 0}
-.ft{margin-top:40px;padding-top:20px;border-top:1px solid #1e293b;font-size:10px;color:#475569}
+.b-a{background:rgba(251,191,36,.15);color:#fbbf24}
+.b-s{background:rgba(100,116,139,.15);color:#94a3b8}
+.twrap{overflow-x:auto;margin-bottom:32px}
+.ft{margin-top:32px;padding-top:20px;border-top:1px solid #1e293b;font-size:10px;color:#475569}
 </style>
 </head>
 <body>
-<h1>FastNote Go Editions Benchmark</h1>
-<h2>gio vs fyne -- real windows, real clicks, real pixels</h2>
-<p class="sub">Generated 2026-08-13 11:43 | 7 reps per operation | instrument floor 22 ms</p>
-<div class="stats">
-  <div class="st"><div class="sv" style="color:#22d3ee">2</div><div class="sl">Editions</div></div>
-  <div class="st"><div class="sv" style="color:#34d399">22 ms</div><div class="sl">Floor</div></div>
-  <div class="st"><div class="sv" style="color:#a78bfa">7</div><div class="sl">Reps</div></div>
-  <div class="st"><div class="sv" style="color:#fbbf24">+17.7 ms</div><div class="sl">Probe OH</div></div>
+<h1>FastNote Cross-Technology Comparative Tableau</h1>
+<h2>14 editions, one specification: what each toolkit really costs</h2>
+<p class="sub">Generated 2026-08-14 13:49 | capability matrix from the QA history | metrics from
+calibration-gated real-input runs | keyboard-driven, no control maps</p>
+<p class='warn'>Performance figures marked <span class='b b-r'>incomplete</span> are measured against editions failing FR-1..FR-8 evidence (spec 6.2); their sizes and latencies must not be compared as toolkit costs.</p>
+<div class="stats"><div class="st"><div class="sv" style="color:#22d3ee">1</div><div class="sl">Editions measured</div></div><div class="st"><div class="sv" style="color:#34d399">2</div><div class="sl">Capability rows</div></div><div class="st"><div class="sv" style="color:#a78bfa">1</div><div class="sl">Languages</div></div><div class="st"><div class="sv" style="color:#fbbf24">18 ms</div><div class="sl">Floor</div></div><div class="st"><div class="sv" style="color:#fb7185">+2.1 ms</div><div class="sl">Probe OH</div></div><div class="st"><div class="sv" style="color:#fb923c">1</div><div class="sl">Incomplete</div></div></div>
+<div class="card" style="margin-bottom:32px">
+  <div class="ch"><div class="cd" style="background:#34d399"></div>
+  <div class="ct">Capability matrix — which edition passes which case (A01..A14)</div></div>
+  <div class="twrap"><table>
+    <tr><th>Edition</th><th>A01</th><th>A02</th><th>A03</th><th>A04</th><th>A05</th><th>A06</th><th>A07</th><th>A08</th><th>A09</th><th>A10</th><th>A11</th><th>A12</th><th>A13</th><th>A14</th><th>Passed</th></tr>
+  <tr><td>C/GTK4 <span style="color:#475569">(C)</span></td><td><span class="b b-r">FAIL</span></td><td><span class="b b-g">PASS</span></td><td><span class="b b-a">PARTIAL</span></td><td><span class="b b-a">PARTIAL</span></td><td><span class="b b-a">PARTIAL</span></td><td><span class="b b-a">PARTIAL</span></td><td><span class="b b-a">PARTIAL</span></td><td><span class="b b-a">PARTIAL</span></td><td><span class="b b-a">PARTIAL</span></td><td><span class="b b-r">FAIL</span></td><td><span class="b b-r">FAIL</span></td><td><span class="b b-r">FAIL</span></td><td><span class="b b-a">PARTIAL</span></td><td><span class="b b-g">PASS</span></td><td>2/14</td></tr>
+  <tr><td>Python/GTK4 <span style="color:#475569">(Python)</span></td><td><span class="b b-s">-</span></td><td><span class="b b-g">PASS</span></td><td><span class="b b-s">-</span></td><td><span class="b b-s">-</span></td><td><span class="b b-s">-</span></td><td><span class="b b-s">-</span></td><td><span class="b b-s">-</span></td><td><span class="b b-s">-</span></td><td><span class="b b-s">-</span></td><td><span class="b b-g">PASS</span></td><td><span class="b b-g">PASS</span></td><td><span class="b b-g">PASS</span></td><td><span class="b b-s">-</span></td><td><span class="b b-s">-</span></td><td>4/14</td></tr>
+  </table></div>
 </div>
 <div class="grid">
-  <div class="card"><div class="ch"><div class="cd" style="background:#22d3ee"></div><div class="ct">Startup</div></div><div>    <div class="bar-row"><span class="bl">go_gio</span><div class="bt"><div class="bf" style="width:100%;background:#22d3ee">199.7 ms</div></div></div>
-    <div class="bar-row"><span class="bl">go_fyne</span><div class="bt"><div class="bf" style="width:88%;background:#22d3ee">176.0 ms</div></div></div></div></div>
-  <div class="card"><div class="ch"><div class="cd" style="background:#38bdf8"></div><div class="ct">RSS Own</div></div><div>    <div class="bar-row"><span class="bl">go_gio</span><div class="bt"><div class="bf" style="width:55%;background:#38bdf8">39.0 MB</div></div></div>
-    <div class="bar-row"><span class="bl">go_fyne</span><div class="bt"><div class="bf" style="width:100%;background:#38bdf8">71.44921875 MB</div></div></div></div></div>
-  <div class="card"><div class="ch"><div class="cd" style="background:#94a3b8"></div><div class="ct">RSS Shared</div></div><div>    <div class="bar-row"><span class="bl">go_gio</span><div class="bt"><div class="bf" style="width:90%;background:#94a3b8">138.9375 MB</div></div></div>
-    <div class="bar-row"><span class="bl">go_fyne</span><div class="bt"><div class="bf" style="width:100%;background:#94a3b8">154.55859375 MB</div></div></div></div></div>
-  <div class="card"><div class="ch"><div class="cd" style="background:#fb923c"></div><div class="ct">RSS Peak</div></div><div>    <div class="bar-row"><span class="bl">go_gio</span><div class="bt"><div class="bf" style="width:79%;background:#fb923c">177.9453125 MB</div></div></div>
-    <div class="bar-row"><span class="bl">go_fyne</span><div class="bt"><div class="bf" style="width:100%;background:#fb923c">226.0234375 MB</div></div></div></div></div>
+  <div class="card"><div class="ch"><div class="cd" style="background:#22d3ee"></div><div class="ct">Binary Size</div></div><div>    <div class="bar-row"><span class="bl">C/GTK4</span><div class="bt"><div class="bf" style="width:100%;background:#22d3ee">0.06 MB</div></div></div></div></div>  <div class="card"><div class="ch"><div class="cd" style="background:#22d3ee"></div><div class="ct">Startup</div></div><div>    <div class="bar-row"><span class="bl">C/GTK4</span><div class="bt"><div class="bf" style="width:100%;background:#22d3ee">320.0 ms</div></div></div></div></div>  <div class="card"><div class="ch"><div class="cd" style="background:#38bdf8"></div><div class="ct">RSS Own</div></div><div>    <div class="bar-row"><span class="bl">C/GTK4</span><div class="bt"><div class="bf" style="width:100%;background:#38bdf8">28.3 MB</div></div></div></div></div>  <div class="card"><div class="ch"><div class="cd" style="background:#94a3b8"></div><div class="ct">RSS Shared</div></div><div>    <div class="bar-row"><span class="bl">C/GTK4</span><div class="bt"><div class="bf" style="width:100%;background:#94a3b8">178.7 MB</div></div></div></div></div>  <div class="card"><div class="ch"><div class="cd" style="background:#fb923c"></div><div class="ct">RSS Peak</div></div><div>    <div class="bar-row"><span class="bl">C/GTK4</span><div class="bt"><div class="bf" style="width:100%;background:#fb923c">208.0 MB</div></div></div></div></div>
 </div>
-<div class="card" style="margin-bottom:40px">
-  <div class="ch"><div class="cd" style="background:#34d399"></div><div class="ct">Interaction Latency</div></div>
-  <div class="grid" style="margin-bottom:0">
-    <div><h3 style="font-size:12px;color:#64748b;margin-bottom:8px">Open</h3><div>    <div class="bar-row"><span class="bl">go_gio</span><div class="bt"><div class="bf" style="width:100%;background:#34d399">95.4 ms</div></div></div>
-    <div class="bar-row"><span class="bl">go_fyne</span><div class="bt"><div class="bf" style="width:61%;background:#34d399">57.8 ms</div></div></div></div></div>
-    <div><h3 style="font-size:12px;color:#64748b;margin-bottom:8px">Edit</h3><div>    <div class="bar-row"><span class="bl">go_fyne</span><div class="bt"><div class="bf" style="width:100%;background:#a78bfa">40.0 ms</div></div></div></div></div>
-    <div><h3 style="font-size:12px;color:#64748b;margin-bottom:8px">Save</h3><div>    <div class="bar-row"><span class="bl">go_fyne</span><div class="bt"><div class="bf" style="width:100%;background:#fbbf24">31.3 ms</div></div></div></div></div>
-    <div><h3 style="font-size:12px;color:#64748b;margin-bottom:8px">Export</h3><div>    <div class="bar-row"><span class="bl">go_gio</span><div class="bt"><div class="bf" style="width:100%;background:#fb7185">94.1 ms</div></div></div>
-    <div class="bar-row"><span class="bl">go_fyne</span><div class="bt"><div class="bf" style="width:58%;background:#fb7185">54.6 ms</div></div></div></div></div>
-  </div>
+<div class="card" style="margin-bottom:32px">
+  <div class="ch"><div class="cd" style="background:#34d399"></div>
+  <div class="ct">Interaction latency (median ms, instrument floor 18 ms)</div></div>
+  <div class="grid" style="margin-bottom:0"><div><h3 style="font-size:12px;color:#64748b;margin-bottom:8px">Open</h3>    <div class="bar-row"><span class="bl">C/GTK4</span><div class="bt"><div class="bf" style="width:100%;background:#34d399">40.0 ms</div></div></div></div><div><h3 style="font-size:12px;color:#64748b;margin-bottom:8px">Save</h3>    <div class="bar-row"><span class="bl">C/GTK4</span><div class="bt"><div class="bf" style="width:100%;background:#fbbf24">25.0 ms</div></div></div></div><div><h3 style="font-size:12px;color:#64748b;margin-bottom:8px">Export HTML</h3>    <div class="bar-row"><span class="bl">C/GTK4</span><div class="bt"><div class="bf" style="width:100%;background:#fb7185">33.0 ms</div></div></div></div><div><h3 style="font-size:12px;color:#64748b;margin-bottom:8px">Export PDF</h3>    <div class="bar-row"><span class="bl">C/GTK4</span><div class="bt"><div class="bf" style="width:100%;background:#a78bfa">41.0 ms</div></div></div></div><div><h3 style="font-size:12px;color:#64748b;margin-bottom:8px">Edit</h3>    <div class="bar-row"><span class="bl">C/GTK4</span><div class="bt"><div class="bf" style="width:100%;background:#38bdf8">21.0 ms</div></div></div></div></div>
 </div>
-<div class="twrap">
-  <table>
-    <tr><th>Edition</th><th>Startup</th><th>Open</th><th>Edit</th><th>Save</th><th>Export</th></tr>
-  <tr><td>go_gio</td><td><span class="b b-g">200 (app 178)</span></td><td><span class="b b-g">95 (app 74)</span></td><td><span class="b b-r">N/A</span></td><td><span class="b b-r">N/A</span></td><td><span class="b b-g">94 (app 72)</span></td></tr>
-  <tr><td>go_fyne</td><td><span class="b b-g">176 (app 154)</span></td><td><span class="b b-g">58 (app 36)</span></td><td><span class="b b-g">40 (app 18)</span></td><td><span class="b b-g">31 (app 10)</span></td><td><span class="b b-g">55 (app 33)</span></td></tr>
+<div class="card" style="margin-bottom:32px">
+  <div class="ch"><div class="cd" style="background:#94a3b8"></div>
+  <div class="ct">Measured table (size / startup / latency / RSS split)</div></div>
+  <div class="twrap"><table>
+    <tr><th>Edition</th><th>Binary</th><th>Startup</th><th>Open</th><th>Save</th>
+    <th>Export HTML</th><th>Export PDF</th><th>Edit</th><th>RSS own</th>
+    <th>RSS shared</th><th>RSS peak</th></tr>
+  <tr><td>C/GTK4</td><td>57 KB</td><td>320</td><td>40</td><td>25</td><td>33</td><td>41</td><td>21</td><td>28 MB</td><td>179 MB</td><td>208 MB</td></tr>
+  </table></div>
+</div>
+<div class="card" style="margin-bottom:32px">
+  <div class="ch"><div class="cd" style="background:#94a3b8"></div>
+  <div class="ct">Probe verification</div></div>
+  <table><tr><th>Target</th><th>Measured</th><th>Overhead</th></tr>
+  <tr><td>target 50 ms</td><td>52.1 ms</td><td>+2.1 ms</td></tr>
+  <tr><td>target 150 ms</td><td>152.0 ms</td><td>+2.0 ms</td></tr>
   </table>
 </div>
-<div class="card" style="margin-bottom:40px">
-  <div class="ch"><div class="cd" style="background:#94a3b8"></div><div class="ct">Probe Verification</div></div>
-  <table>
-    <tr><th>Target</th><th>Measured</th><th>Overhead</th></tr>
-  <tr><td>target 50 ms</td><td>67.7 ms</td><td>+17.7 ms</td></tr>
-  <tr><td>target 150 ms</td><td>166.7 ms</td><td>+16.7 ms</td></tr>
-  </table>
-</div>
-<ul class="notes">
-  <li>Instrument floor: 22 ms (60 Hz frame interval)</li>
-  <li>"app" = median minus floor, the edition's own share</li>
-  <li>RSS own = RssAnon; RSS shared = RssFile; Peak = VmHWM</li>
-  <li>Startup = launch to first painted frame, median of 5 after warm-up</li>
-  <li>go_gio edit: only 0/7 samples detected pixel change (withheld)</li>
-  <li>go_gio save: only 0/7 samples detected pixel change (withheld)</li>
-</ul>
-<div class="ft">FastNote benchmark | Real binaries, real windows, real input, real pixels</div>
+<p class="sub">Incompleteness markers: editions failing any of A01..A11 cannot contribute
+a meaningful performance comparison. "app" latency = median minus the 18 ms
+instrument floor. RSS own = RssAnon, RSS shared = RssFile, peak = VmHWM of the whole
+process tree. Startup = launch to the first painted frame ('painted' marker).</p>
+<div class="ft">FastNote | one spec, fourteen stacks, measured by driving the real window</div>
 </body>
 </html>

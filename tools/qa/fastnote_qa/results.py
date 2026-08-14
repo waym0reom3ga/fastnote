@@ -55,9 +55,23 @@ class Store:
             WHERE r.id = (SELECT MAX(id) FROM run)
             ORDER BY r.edition, res.case_id""").fetchall()
 
+    def per_edition_latest(self):
+        """The most recent run per edition: {edition: {case_id: status}}.
+        Used by the comparative tableau for the capability matrix."""
+        rows = self.conn.execute("""
+            SELECT r.edition, res.case_id, res.status
+            FROM result res JOIN run r ON r.id = res.run_id
+            WHERE r.id = (SELECT MAX(r2.id) FROM run r2
+                          WHERE r2.edition = r.edition)
+            ORDER BY r.edition, res.case_id""").fetchall()
+        matrix = {}
+        for edition, case_id, status in rows:
+            matrix.setdefault(edition, {})[case_id] = status
+        return matrix
+
 
 CASE_ORDER = ["a01", "a02", "a03", "a04", "a05", "a06", "a07", "a08",
-              "a09", "a10", "a11", "a12", "a13"]
+              "a09", "a10", "a11", "a12", "a13", "a14"]
 
 
 def report_markdown(rows):

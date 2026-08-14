@@ -7,6 +7,8 @@ import subprocess
 import time
 from pathlib import Path
 
+from . import fixtures
+
 PASS = "PASS"
 FAIL = "FAIL"
 SKIP = "SKIP"
@@ -45,7 +47,7 @@ class CaseContext:
         self.work = work                # Path, per-case scratch dir
         self.evidence = evidence        # Path, evidence dir for this case
         self.display_ok = display_ok    # bool: usable X display present
-        self.instrumented = instrumented  # bool: control map available
+        self.instrumented = instrumented  # bool: edition publishes --event-file
         self.build_ok = build_ok        # bool: binary present and current runnable
 
     def log(self, name, text):
@@ -75,6 +77,7 @@ class Runner:
             if work.exists():
                 shutil.rmtree(work)
             work.mkdir(parents=True)
+            fixtures.seed(work)
             evidence = self.evidence_root / name / case_id
             if evidence.exists():
                 shutil.rmtree(evidence)

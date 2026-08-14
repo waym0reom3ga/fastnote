@@ -18,6 +18,7 @@ Exit status: 0 all pass, 1 any fail, 2 usage/environment error,
 """
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -77,7 +78,7 @@ def run_edition(args, name, store, case_filter):
     print(f"\033[1m=== {name} ===\033[0m ({build_note})")
 
     display_ok = x11.display_ok()
-    instrumented = entry["instrumentation"] != "none"
+    instrumented = entry["event"]
     runner = core.Runner(all_cases(), WORK / "work", EVIDENCE, store)
     rows = runner.run_edition(entry, display_ok, instrumented, build_ok,
                               BUILD_LOG / name, case_filter)
@@ -101,28 +102,47 @@ def measure(args, names):
     for c in checks:
         print(f"  truth {c['truth_ms']} ms -> measured {c['measured_median']:.1f} ms "
               f"(overhead {c['overhead']:+.1f} ms)")
+
+    results = []
     ok = True
     for name in names:
         entry = manifest.entry(name)
         print(f"\033[1mmeasuring {name}\033[0m")
-        meth = measurements.measure_basics(entry)
-        if meth["binary_size_bytes"] is None:
-            print(f"  ERROR: no binary at {entry['binary']}")
+        if not entry["event"]:
+            print(f"  SKIP: edition does not publish --event-file yet")
+            continue
+        r = measurements.measure_edition(entry, WORK / "measure", args.reps)
+        results.append(r)
+        if "error" in r:
+            print(f"  ERROR: {r['error']}")
             ok = False
             continue
-        size = f"{meth['binary_size_bytes']/1048576:.1f} MB" if meth["binary_size_bytes"] >= 1048576 \
-            else f"{meth['binary_size_bytes']/1024:.0f} KB"
-        print(f"  binary size: {size}")
-        try:
-            su = measurements.measure_startup(entry, WORK / "work")
-        except Exception as e:
-            print(f"  startup: failed ({e})")
-            su = None
-        if su and not su.get("insufficient"):
-            print(f"  startup: {su['median']:.0f} ms +/- {su.get('stdev', 0):.0f} (n={su['n']})")
-        elif su:
-            print(f"  startup: insufficient samples ({su['n']}/{su['wanted']})")
+        _print_measured(r)
+    if not results:
+        print("no editions measured (none publish --event-file yet)")
+        return 1
+
+    payload = {"floor": floor, "verification": checks, "results": results}
+    out = WORK / "results.json"
+    out.write_text(json.dumps(payload, indent=2))
+    print(f"\nraw: {out}")
     return 0 if ok else 1
+
+
+def _print_measured(r):
+    size = r["binary_size_bytes"]
+    sz = f"{size/1048576:.1f} MB" if size >= 1048576 else f"{size/1024:.0f} KB"
+    su = r.get("startup_ms") or {}
+    startup = f"{su['median']:.0f} ms" if su.get("median") is not None else "n/a"
+    rss = r.get("rss") or {}
+    own = f"{rss.get('anon_kb', 0)/1024:.0f} MB" if rss else "n/a"
+    peak = f"{rss.get('peak_kb', 0)/1024:.0f} MB" if rss else "n/a"
+    lat = []
+    for k in ("open_ms", "save_ms", "export_html_ms", "export_pdf_ms", "edit_ms"):
+        v = r.get(k) or {}
+        lat.append(f"{k[:-3]}={v.get('median', 'n/a')} ms")
+    print(f"  binary {sz} | startup {startup} | RSS own {own} | peak {peak}")
+    print(f"  " + "  ".join(lat))
 
 
 def main():
