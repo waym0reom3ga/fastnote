@@ -23,7 +23,7 @@ EDITIONS = {
     "go_fyne":   ("fastnote_go_fyne_ed",   "make",                  "fastnotes",           "FastNote", False),
     "go_gtk4":   ("fastnote_go_gtk4_ed",   "make",                  "fastnote-gtk4",       "FastNote", False),
     "go_wails3": ("fastnote_go_wails3_ed", "wails3 build",          "bin/fastnote-wails3", "FastNote", False),
-    "c_gtk4":    ("fastnote_c_gtk4_ed",    "make",                  "fastnote_c_gtk4",     "FastNote", False),
+    "c_gtk4":    ("fastnote_c_gtk4_ed",    "make",                  "fastnote_c_gtk4",     "FastNote", True),
     "c_nuklear": ("fastnote_c_nuklear_ed", "make",                  "fastnote_c_nuklear",  "FastNote", False),
     "c_raygui":  ("fastnote_c_raygui_ed",  "make",                  "fastnote-c-raygui",   "FastNote", False),
     "rust_gtk4": ("fastnote_rust_gtk4_ed", "cargo build --release", "target/release/fastnote-rust-gtk4", "FastNote", False),

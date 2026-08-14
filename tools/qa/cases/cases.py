@@ -38,19 +38,24 @@ def _ready(ctx, sess):
     return True, ""
 
 
-def _open_file(ctx, sess, path, timeout=20):
-    """Ctrl+O, Ctrl+L, type the path, Enter, wait for the open marker."""
-    sess.open_path(path)
-    if not sess.wait_event(EVENT_OPEN, timeout=timeout):
-        return False, "open marker never arrived (file did not load)"
-    return True, ""
+def _open_file(ctx, sess, path, timeout=20, attempts=3):
+    """Ctrl+O, Ctrl+L, type the path, Enter, wait for the open marker.
+    The first gesture after a launch can race the window's input focus; retry
+    the whole gesture (each attempt re-focuses and re-opens the browser)."""
+    for _ in range(attempts):
+        sess.open_path(path)
+        if sess.wait_event(EVENT_OPEN, timeout=timeout):
+            return True, ""
+        sess.press("Escape", settle=0.3)   # dismiss a stuck dialog, if any
+        time.sleep(0.4)
+    return False, "open marker never arrived (file did not load)"
 
 
 def _edit_dirty(ctx, sess, marker=fixtures.MARKER, timeout=8):
     """Type the marker; require the dirty marker in the title. Keystrokes are
     delivered to whatever has focus; an edition that does not focus its editor
     after opening a document fails here, as a user would notice."""
-    x11.type_text(marker)
+    sess.type(marker, refocus=True)
     if sess.wait_title_contains("*", timeout=timeout):
         return True, ""
     return False, "dirty marker never appeared in the title"
@@ -59,9 +64,9 @@ def _edit_dirty(ctx, sess, marker=fixtures.MARKER, timeout=8):
 def _export(ctx, sess, accel, marker, filename, validator, out):
     """Press the export accelerator, type the destination path, confirm; wait
     for the phase marker; validate the real artifact on disk."""
-    sess.press(accel)
+    sess.press(accel, refocus=True)
     sess.press("ctrl+l")
-    x11.type_text(str(out))
+    sess.type(str(out))
     time.sleep(0.3)
     sess.press("Return", settle=0)
     if not sess.wait_event(marker, timeout=20):
@@ -196,7 +201,7 @@ def a05_save(ctx):
         ok, detail = _edit_dirty(ctx, sess)
         if not ok:
             return core.fail(detail)
-        sess.press("ctrl+s")
+        sess.press("ctrl+s", refocus=True)
         if not sess.wait_event(EVENT_SAVE, timeout=15):
             return core.fail("save marker never arrived")
         if fixtures.MARKER not in doc.read_text():
@@ -225,9 +230,9 @@ def a06_save_as(ctx):
         if not ok:
             return core.fail(detail)
         new_path = ctx.work / "outside" / "renamed.md"
-        sess.press("ctrl+shift+s")
+        sess.press("ctrl+shift+s", refocus=True)
         sess.press("ctrl+l")
-        x11.type_text(str(new_path))
+        sess.type(str(new_path))
         time.sleep(0.3)
         sess.press("Return", settle=0)
         if not sess.wait_event(EVENT_SAVE_AS, timeout=15):
@@ -306,7 +311,7 @@ def a09_e2e(ctx):
         ok, detail = _edit_dirty(ctx, sess)
         if not ok:
             return core.fail(f"edit step: {detail}")
-        sess.press("ctrl+s")
+        sess.press("ctrl+s", refocus=True)
         if not sess.wait_event(EVENT_SAVE, timeout=15):
             return core.fail("save marker never arrived")
         if fixtures.MARKER not in far.read_text():

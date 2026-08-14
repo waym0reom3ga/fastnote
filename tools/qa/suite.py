@@ -171,6 +171,7 @@ def main():
     manifest.ROOT = ROOT
     x11.PROBE = ROOT / "tools" / "measure" / "fnprobe"
     x11.SYNTH = ROOT / "tools" / "measure" / "fnsynth"
+    x11.CLOSE = ROOT / "tools" / "measure" / "fnclose"
     WORK.mkdir(parents=True, exist_ok=True)
 
     if args.calibrate:

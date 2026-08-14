@@ -103,17 +103,17 @@ class GuiSession:
 
     def wait_event(self, marker, timeout=20.0):
         """Wait until the edition has appended the phase marker to its event
-        file. Returns True when seen, False on timeout."""
-        if self.events is None or not self.events.exists():
-            return False
+        file. The file itself may not exist yet (it is created by the app);
+        this polls for both. Returns True when seen, False on timeout."""
         deadline = time.time() + timeout
         while time.time() < deadline:
-            try:
-                text = self.events.read_text()
-            except OSError:
-                text = ""
-            if any(line.strip() == marker for line in text.splitlines()):
-                return True
+            if self.events is not None and self.events.exists():
+                try:
+                    text = self.events.read_text()
+                except OSError:
+                    text = ""
+                if any(line.strip() == marker for line in text.splitlines()):
+                    return True
             time.sleep(0.05)
         return False
 
@@ -145,16 +145,32 @@ class GuiSession:
 
     # -- keyboard-driven actions -------------------------------------------
 
-    def press(self, accel, settle=0.3):
-        """Press a canonical accelerator and let the window respond."""
+    def focus(self):
+        """Make the main window the X input-focus window."""
+        if self.wid:
+            x11.focus(self.wid)
+            time.sleep(0.2)
+
+    def press(self, accel, settle=0.3, refocus=False):
+        """Press a canonical accelerator. refocus first establishes X input
+        focus on the main window (needed for the first key of a sequence);
+        once a modal browser/dialog is open it owns the keyboard, so later
+        keys in the sequence must not re-focus the main window."""
+        if refocus:
+            self.focus()
         x11.key(accel)
         if settle:
             time.sleep(settle)
 
+    def type(self, text, refocus=False, delay_ms=40):
+        if refocus:
+            self.focus()
+        x11.type_text(text, delay_ms)
+
     def open_path(self, path, settle=0.3):
-        """The full open gesture: Ctrl+O, Ctrl+L, type the path, Enter."""
-        self.press(ACCEL_OPEN, settle=settle)
+        """The full open gesture: focus, Ctrl+O, Ctrl+L, type the path, Enter."""
+        self.press(ACCEL_OPEN, settle=settle, refocus=True)
         self.press(ACCEL_FOCUS_PATH, settle=settle)
-        x11.type_text(str(path))
+        self.type(str(path))
         time.sleep(settle)
         self.press(ACCEL_CONFIRM, settle=0)
