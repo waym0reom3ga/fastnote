@@ -113,8 +113,8 @@ discoverable.
 
 ### FR-5 — Save
 
-The application MUST provide a visible **Save** control, and SHOULD bind it to the platform
-save accelerator (`Ctrl+S`).
+The application MUST provide a visible **Save** control, and MUST bind it to the platform
+save accelerator (`Ctrl+S`, see FR-11).
 
 Activating Save on a document with a known path MUST write the current editor contents to
 that path and clear the dirty state. The bytes on disk MUST afterwards equal the editor
@@ -163,6 +163,28 @@ The application MAY present a sidebar listing markdown files found under a confi
 directory, for quick switching. This is permitted and encouraged, but it is **supplementary
 to FR-2, never a substitute for it**.
 
+### FR-11 — Standard keyboard accelerators
+
+Every operation in §1 MUST be reachable by a standard keyboard accelerator, using the
+conventional Windows-style mapping, so that a user can drive the application without first
+locating a button and without moving the pointer:
+
+| Accelerator | Action | FR |
+|---|---|---|
+| `Ctrl+O` | Open (show the file browser in open mode) | FR-2 |
+| `Ctrl+S` | Save the current document | FR-5 |
+| `Ctrl+Shift+S` | Save the current document to a new path (Save As) | FR-6 |
+| `Ctrl+E` | Export (show the file browser in export mode, offering HTML and PDF) | FR-7, FR-8 |
+| `Ctrl+Shift+E` | Export PDF directly | FR-8 |
+
+The accelerators MUST invoke the same code paths as the corresponding on-screen controls
+(shared-path rule, §5.2). An accelerator that does nothing when its control is visible is a
+specification violation. A port that cannot bind the literal `Ctrl` combination MAY bind the
+platform-standard replacement (e.g. `Meta` on macOS) and MUST document the mapping; on every
+other platform the literal mapping above applies.
+
+The file browser's keyboard contract (path entry, confirm, cancel) is specified in §3.2.
+
 ---
 
 ## 3. The File Browser component
@@ -192,6 +214,19 @@ The browser MUST:
 - Provide a text field for typing a path directly. In save/export mode this field supplies
   the new filename.
 - Offer explicit confirm and cancel actions. Cancel MUST leave application state unchanged.
+
+The browser MUST be fully operable from the keyboard. The tests and the acceptance suite
+drive the browser by typing a path and confirming it, never by guessing control coordinates,
+so the following key contract is part of the specification:
+
+- `Ctrl+L` focuses the path text field and selects its contents, ready for typing.
+- Typing a path into the focused field replaces the current selection.
+- `Enter` confirms: in open mode, the browser opens the typed file if it exists (or the
+  currently highlighted entry); in save/export mode, it returns the typed path, which need
+  not exist.
+- `Escape` cancels the browser and MUST leave application state unchanged.
+
+A browser whose only usable path is pointer interaction does not satisfy FR-2/FR-6/FR-7/FR-8.
 
 The browser SHOULD present a hierarchical tree of the notes directory where the toolkit makes
 this natural, but a flat navigable list satisfies the requirement.
@@ -238,46 +273,68 @@ seconds, and arbitrary Unicode (CJK, Cyrillic, emoji) without corruption or cras
 
 ---
 
-## 5. The headless control seam
+## 5. Testability
 
-Every port MUST expose a command-line interface. This exists so that the acceptance suite in
-§6 can drive all ports identically, without screenshot comparison or platform-specific UI
-automation.
+FastNote is a GUI editor. It has no headless mode: a mode in which a user cannot see what
+they are editing is not FastNote. Testing therefore drives the real window.
 
-### 5.1 Required arguments
+### 5.1 Permitted CLI flags
+
+The binary MUST NOT accept any argument that constitutes an editing path or a command.
+Exactly two arguments are permitted:
 
 | Argument | Behaviour |
 |---|---|
-| `--open <path>` | Open `<path>` as the active document at startup |
-| `--export <path>` | Export the active document to `<path>`; format inferred from extension |
-| `--insert <text>` | Append `<text>` to the active document (drives the "edit" step) |
-| `--save` | Save the active document to its current path |
-| `--headless` | Execute the requested actions without creating a window, then exit |
-| `--notes-dir <path>` | Override the notes directory |
-| `--selftest` | Run the port's internal consistency checks, exit 0 on success |
 | `--version` | Print port identifier and version, exit 0 |
+| `--event-file PATH` | Append one line to PATH each time a user-visible phase completes. No other effect. |
 
-Arguments MUST be processed in the order: `--open`, `--insert`, `--save`, `--export`.
+`--event-file` is the measurement trigger, and its only purpose is measurement. The
+application appends one line per completed phase, written only after the phase has actually
+finished — the document is loaded, the bytes are on disk, the frame is presented — so an
+external harness can time the operation and is signalled to start the next one. The
+recognised phase markers are:
 
-Exit status MUST be 0 on success and non-zero on failure. A failure to open, save, or export
-MUST produce a non-zero exit and a diagnostic on stderr.
+| Marker | Meaning |
+|---|---|
+| `painted` | The first frame has been presented and the window is responsive (startup complete) |
+| `open` | The file browser confirmed an open and the document is loaded |
+| `save` | A save completed; the editor contents are on disk |
+| `save-as` | A Save As completed; the document's path is the new path |
+| `export-html` | An HTML export completed; the standalone document is on disk |
+| `export-pdf` | A PDF export completed; the PDF file is on disk |
+
+`--event-file` is a reporting outlet, never a command path. It MUST NOT cause, trigger, or
+simulate any operation; every phase marker is written by the same code path the GUI uses. A
+port that writes a marker without performing the operation is a specification violation.
+
+The binary MUST NOT accept `--open`, `--insert`, `--save`, `--export`, `--headless`,
+`--selftest`, `--notes-dir`, `--control-map`, or any other flag that exists to reach
+application functionality without the GUI. A port that implements any such flag violates
+this specification: such flags create a second application whose test coverage substitutes
+for — and masks the absence of — a working GUI.
 
 ### 5.2 The shared-path rule
 
-**The CLI MUST invoke the same functions the GUI controls invoke.**
+The GUI controls and their standard accelerators (FR-11) MUST be the only paths to
+application functionality. There is no seam, no hidden command, no second entry point.
+Every functional requirement FR-1 through FR-11 is reachable by a user with a mouse and
+keyboard, and by the acceptance suite with synthesized pointer and key events delivered
+through the framework's own input pipeline. The only flag a binary accepts beyond `--version`
+is `--event-file` (§5.1), which reports completed phases and can neither invoke nor simulate
+any operation.
 
-`--export` must call the identical code path as clicking the Export button. If the two are
-implemented separately, the acceptance tests will pass while the button remains broken — this
-is precisely how the previous test suite came to report success on non-functional software.
+Reviewers should verify by inspection that no port contains a duplicate implementation of
+open/edit/save/export reachable by command line. A GUI handler and a CLI handler that each
+contain their own copy of the logic is a specification violation even if both work.
 
-Reviewers should verify this by inspection: a GUI handler and a CLI handler that both contain
-their own copy of the logic is a specification violation even if both work.
+### 5.3 Testing under a display
 
-### 5.3 Headless mode
-
-Under `--headless` a port MUST NOT require a display server. Application state, document
-loading, editing, saving, rendering, and export MUST all function. Only window creation and
-event loop entry are skipped.
+The acceptance suite MAY run the port under a virtual display server (e.g. Xvfb) and MUST
+inject pointer and keyboard events through the framework's own event pipeline. Synthesized
+events are delivered by the toolkit's official input API (`test.Tap`, `QTest::mouseClick`,
+`gtk_test_widget_click`, `input.Router.Queue`, simulated input, or the immediate-mode
+toolkit's event-injection entry points). Routing clicks through a hand-written registry that
+bypasses the framework is prohibited: it tests the registry, not the interface.
 
 ---
 
@@ -355,23 +412,39 @@ tests, as does `go_fyne`.
 
 ## 9. Known deviations at time of writing
 
-Recorded so that progress is measured against reality.
+Recorded so that progress is measured against reality. **The previous edition of this table —
+claiming pass everywhere — is withdrawn. It described trees that no longer exist.** Every
+edition carries a seam-era tree (banned flags, no accelerators) until the repair lineage
+(§8) and the keyboard-driven acceptance suite re-prove it. This table is repopulated from
+measured results as each edition passes.
 
-| Port | FR-1 build | FR-2 open | FR-3 edit | FR-5 save | FR-7 export |
+| Port | Seam-free §5.1 | Accelerators FR-11 | Event-file §5.1 | Keyboard acceptance | Current state |
 |---|---|---|---|---|---|
-| go_gio | pass | pass | pass | pass | pass |
-| go_fyne | pass | pass | pass | pass | pass |
-| c_nuklear | pass | pass | pass | pass | pass |
-| c_gtk4 | pass | pass | pass | pass | pass |
-| c_raygui | pass | pass | pass | pass | pass |
-| rust_egui | pass | pass | pass | pass | pass |
-| rust_gtk4 | pass | pass | pass | pass | pass |
-| rust_slint | pass | pass | pass | pass | pass |
-| python ×4 | pass | pass | pass | pass | pass |
+| go_gio | no | not verified | not verified | pending | seam-era tree; reference behaviour |
+| go_fyne | no | not verified | not verified | pending | seam-era tree |
+| c_nuklear | yes | not verified | not verified | pending | 26/26 in-process GUI suite |
+| c_gtk4 | yes | not verified | not verified | pending | 22/22 in-process GUI suite |
+| c_raygui | no | no | no | pending | repair pending |
+| rust_egui | no | not verified | not verified | pending | repair pending |
+| rust_gtk4 | no | not verified | not verified | pending | repair pending |
+| rust_slint | no | not verified | not verified | pending | repair pending |
+| go_gtk4 | no | not verified | not verified | pending | repair pending |
+| go_wails3 | no | not verified | not verified | pending | repair pending |
+| python_gtk4 | no | not verified | not verified | pending | seam-era tree |
+| python_pyqt6 | no | not verified | not verified | pending | seam-era tree |
+| python_pyside6 | no | not verified | not verified | pending | seam-era tree |
+| python_dearpygui | no | not verified | not verified | pending | seam-era tree |
 
-All twelve ports now satisfy FR-1 through FR-9 and pass all thirteen acceptance tests.
-FR-2, the gap that defined this project for a month, is closed everywhere.
+FR-2 — opening an arbitrary file through the application's own interface — remains the test
+that defines this project. It is not yet re-proven under the keyboard-driven protocol for any
+port; that proof is the first criterion of the repair lineage.
 
 ## 10. Change log
 
+- 2026-08-14: FR-11 added (standard keyboard accelerators Ctrl+O/S, Ctrl+Shift+S, Ctrl+E,
+  Ctrl+Shift+E). §3.2 gains the browser keyboard contract (Ctrl+L, Enter, Escape). §5.1
+  rewritten: exactly two permitted flags, `--version` and `--event-file` (a measurement-only
+  completion trigger); all editing-path flags banned. §5.2 updated for the accelerator path.
+  §9 reset: the all-pass table is withdrawn as describing trees that no longer exist; the
+  table now records the audit state and is repopulated from measured results.
 - 2026-08-11: §3.1 rewritten. Native dialogs are no longer banned. The only requirement is POSIX-compliant filesystem operations. Presentation layer is up to each port.

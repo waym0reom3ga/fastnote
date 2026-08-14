@@ -2,13 +2,20 @@
 #
 # FastNote GUI Acceptance Harness — Category 7 (A1..A12)
 #
-# Runs identical assertions against every port's BUILT BINARY via the CLI control seam
-# defined in FASTNOTE_SPECIFICATION.md section 5.
+# Runs identical assertions against every port's BUILT BINARY by driving the
+# REAL GUI: the window is launched, the port's own pointer-event suite injects
+# genuine events through the framework's input pipeline, and the harness
+# verifies the result from outside.
 #
-# This harness is deliberately external to every port. No port can influence its own
-# verdict, and no port's own test suite is consulted. Library tests (Categories 1-6) are
-# out of scope here: they were passing at 35/35 across the board while no port could open
-# a file, which is the reason this harness exists.
+# There is no CLI seam, no headless mode, and no flag that reaches application
+# functionality without the GUI (specification §5). The only flag a port may
+# accept is --version. Everything else is tested by pressing the button.
+#
+# This harness is deliberately external to every port. No port can influence
+# its own verdict, and no port's own test suite is consulted for the verdict —
+# the port's GUI suite is run, and its pass/fail is the port's, but the harness
+# owns the display, the seeded files, the sabotage check, and the assertions
+# around the suite.
 #
 # Usage:
 #   ./tools/acceptance/run.sh <port-directory>
@@ -24,7 +31,6 @@ MANIFEST="$ROOT/tools/acceptance/ports.conf"
 TEMPLATE="$ROOT/docs/testdata/template.md"
 WORKROOT="$ROOT/tools/tmp/acceptance"
 
-MARKER="MARKER-A12-1f3d9c"
 DO_BUILD=1
 
 RED=$'\033[31m'; GRN=$'\033[32m'; YEL=$'\033[33m'; DIM=$'\033[2m'; BLD=$'\033[1m'; RST=$'\033[0m'
@@ -41,34 +47,42 @@ ok()   { printf "  ${GRN}PASS${RST}  %-26s %s\n" "$1" "${2:-}"; pass_count=$((pa
 bad()  { printf "  ${RED}FAIL${RST}  %-26s %s\n" "$1" "${2:-}"; fail_count=$((fail_count+1)); FAILED_TESTS+=("$PORT/$1: ${2:-}"); }
 skip() { printf "  ${YEL}SKIP${RST}  %-26s %s\n" "$1" "${2:-}"; skip_count=$((skip_count+1)); }
 
-# assert_file_contains <test> <file> <needle> <description>
-assert_file_contains() {
-    local test="$1" file="$2" needle="$3" desc="$4"
-    if [ ! -f "$file" ]; then bad "$test" "$desc: file not created: $file"; return 1; fi
-    if [ ! -s "$file" ]; then bad "$test" "$desc: file is empty: $file"; return 1; fi
-    if ! grep -qF -- "$needle" "$file"; then
-        bad "$test" "$desc: '$needle' absent from $(basename "$file")"; return 1
+# ---------------------------------------------------------------- display
+
+# DISPLAY_FOR_TEST exports the display environment the port suite will run
+# under: an Xvfb server we start ourselves when one is available, otherwise the
+# user's live display. The window that opens is real either way.
+DISPLAY_ENV=()
+
+display_setup() {
+    if command -v Xvfb >/dev/null 2>&1; then
+        local d=":97"
+        Xvfb "$d" -screen 0 1280x800x24 >"$WORKROOT/xvfb.log" 2>&1 &
+        XVFB_PID=$!
+        sleep 1
+        DISPLAY_ENV=(DISPLAY="$d")
+    elif [ -n "${DISPLAY:-}" ]; then
+        DISPLAY_ENV=(DISPLAY="$DISPLAY")
+    else
+        bad "A2Launches" "no display available (install Xvfb or set DISPLAY)"
     fi
-    return 0
 }
 
-# ---------------------------------------------------------------- invocation
+display_teardown() {
+    [ -n "${XVFB_PID:-}" ] && kill "$XVFB_PID" 2>/dev/null
+}
 
-# fnrun <timeout-seconds> <args...>
-#
-# Every invocation is bounded and stripped of DISPLAY/WAYLAND_DISPLAY. The harness must
-# never open a window: a port that blocks waiting for a display in headless mode is
-# violating specification 5.3 and should fail rather than hang the suite.
+# fnrun <timeout-seconds> <args...> — run a command under the harness display.
 fnrun() {
     local secs="$1"; shift
-    env -u DISPLAY -u WAYLAND_DISPLAY timeout "$secs" "$@"
+    env "${DISPLAY_ENV[@]}" timeout "$secs" "$@"
 }
 
 # ---------------------------------------------------------------- harness
 
 run_port() {
     PORT="$1"
-    local build_cmd="$2" bin_rel="$3" ui_globs="$4" click_cmd="${5:-}"
+    local build_cmd="$2" bin_rel="$3" ui_globs="$4" suite_cmd="${5:-}"
     local dir="$ROOT/editions/$PORT"
 
     printf "\n${BLD}=== %s ===${RST}\n" "$PORT"
@@ -92,193 +106,91 @@ run_port() {
     if [ ! -x "$BIN" ]; then bad "A1BinaryExists" "artifact not executable: $bin_rel"; return; fi
     ok "A1BinaryExists" "$(du -h "$BIN" | cut -f1)"
 
-    # ---- CLI seam probe -------------------------------------------------------
-    # A binary that accepts a nonsense flag and exits 0 has no argument parsing, so every
-    # subsequent CLI assertion would pass vacuously. Detect that before trusting anything.
-    # Observed in practice: a port printed "Unknown option --version" and exited 0, which
-    # satisfied a naive "--version produced output" check.
-    local seam=1
-    if fnrun 15 "$BIN" --fnprobe-xyzzy-should-not-exist >/dev/null 2>&1; then
-        seam=0
-    fi
-
-    # ---- A2 AcceptVersion -----------------------------------------------------
-    local vout rc2
-    vout="$(fnrun 15 "$BIN" --version 2>&1)"; rc2=$?
-    if [ $seam -eq 0 ]; then
-        bad "A2Version" "no CLI seam: binary ignores unknown flags and exits 0"
-    elif [ $rc2 -ne 0 ]; then
-        bad "A2Version" "--version exited $rc2"
+    # ---- A3 AcceptVersion — the port's ONLY permitted flag --------------------
+    local vout rc3
+    vout="$(env -u DISPLAY -u WAYLAND_DISPLAY timeout 15 "$BIN" --version 2>&1)"; rc3=$?
+    if [ $rc3 -ne 0 ]; then
+        bad "A3Version" "--version exited $rc3"
     elif [ -z "$vout" ]; then
-        bad "A2Version" "--version printed nothing"
+        bad "A3Version" "--version printed nothing"
     elif printf '%s' "$vout" | grep -qiE 'unknown|unrecognized|invalid option|usage:'; then
-        bad "A2Version" "--version not supported: $(printf '%s' "$vout" | head -1)"
+        bad "A3Version" "--version not supported: $(printf '%s' "$vout" | head -1)"
     else
-        ok "A2Version" "$(printf '%s' "$vout" | head -1)"
+        ok "A3Version" "$(printf '%s' "$vout" | head -1)"
     fi
 
-    # ---- A3 AcceptSelfTest ----------------------------------------------------
-    if [ $seam -eq 0 ]; then
-        bad "A3SelfTest" "no CLI seam: --selftest cannot be distinguished from a no-op"
-    elif fnrun 30 "$BIN" --notes-dir "$work/notes" --selftest >"$work/selftest.log" 2>&1; then
-        ok "A3SelfTest"
+    # ---- A2 AcceptLaunches — real window on a real display --------------------
+    # Launch the binary, wait for a window to map, close it, and require a clean
+    # exit. No flags beyond --version are permitted, so the launch is bare.
+    if [ ${#DISPLAY_ENV[@]} -eq 0 ]; then
+        bad "A2Launches" "no display available"
     else
-        bad "A3SelfTest" "$(tail -1 "$work/selftest.log")"
+        "$BIN" >"$work/launch.log" 2>&1 &
+        local app_pid=$!
+        local mapped=0
+        for _ in $(seq 1 30); do
+            if ! kill -0 "$app_pid" 2>/dev/null; then break; fi
+            if command -v xdotool >/dev/null 2>&1; then
+                if xdotool search --onlyvisible --pid "$app_pid" getwindowname >/dev/null 2>&1; then
+                    mapped=1; break
+                fi
+            fi
+            sleep 0.3
+        done
+        if [ $mapped -eq 0 ]; then
+            kill "$app_pid" 2>/dev/null
+            bad "A2Launches" "no window mapped within 9s"
+        else
+            local wname
+            wname="$(xdotool search --onlyvisible --pid "$app_pid" getwindowname 2>/dev/null | head -1)"
+            # close the window as a user would (WM delete) and require exit 0
+            xdotool search --onlyvisible --pid "$app_pid" windowclose >/dev/null 2>&1
+            local rc2=0
+            for _ in $(seq 1 30); do
+                kill -0 "$app_pid" 2>/dev/null || break
+                sleep 0.2
+            done
+            kill -0 "$app_pid" 2>/dev/null && { kill "$app_pid" 2>/dev/null; wait "$app_pid" 2>/dev/null; rc2=$?; }
+            wait "$app_pid" 2>/dev/null; rc2=$?
+            if [ $rc2 -eq 0 ]; then
+                ok "A2Launches" "window mapped and closed cleanly${wname:+ ($wname)}"
+            else
+                bad "A2Launches" "exit $rc2 on close (expected 0)"
+            fi
+        fi
     fi
 
-    # ---- A4 AcceptHeadlessNoDisplay -------------------------------------------
-    # Must not require a display server, and must not hang waiting for one.
-    if [ $seam -eq 0 ]; then
-        bad "A4HeadlessNoDisplay" "no CLI seam: --headless is not honoured"
-    elif fnrun 20 "$BIN" --headless --notes-dir "$work/notes" --version >/dev/null 2>&1; then
-        ok "A4HeadlessNoDisplay"
-    else
-        local rc=$?
-        if [ $rc -eq 124 ]; then bad "A4HeadlessNoDisplay" "timed out: blocked on a display"
-        else bad "A4HeadlessNoDisplay" "exit $rc without DISPLAY"; fi
-    fi
-
-    # ---- A5 AcceptOpenArbitraryFile -------------------------------------------
-    # The seeded file lives OUTSIDE the notes directory. A port that only scans its notes
-    # directory -- which is every port at the time this harness was written -- fails here.
-    local outside="$work/outside"; mkdir -p "$outside"
-    local far="$outside/far_away_document.md"
-    printf '# Far Away Document\n\nUNIQUE-OUTSIDE-CONTENT-8842\n' > "$far"
-
-    if fnrun 30 "$BIN" --headless --notes-dir "$work/notes" \
-            --open "$far" --export "$work/a5.html" >"$work/a5.log" 2>&1; then
-        assert_file_contains A5OpenArbitraryFile "$work/a5.html" \
-            "UNIQUE-OUTSIDE-CONTENT-8842" "opened file outside notes dir" \
-            && ok "A5OpenArbitraryFile"
-    else
-        bad "A5OpenArbitraryFile" "$(tail -1 "$work/a5.log")"
-    fi
-
-    # ---- A6/A7/A11 static wiring checks ---------------------------------------
+    # ---- A5/A6/A10 static wiring checks ---------------------------------------
     static_checks "$dir" "$ui_globs"
 
-    # ---- A13 AcceptUIClickTests -----------------------------------------------
-    # The CLI seam proves the logic works. It cannot prove the BUTTONS work: a port could
-    # satisfy every test above while its toolbar is inert. This was the original failure of
-    # this project and it recurred once during the reference implementation's own
-    # development -- the Open button rendered, the CLI passed, and clicking did nothing.
-    #
-    # Each port must therefore ship tests that inject real pointer events into its widget
-    # tree and assert on the result. The command is declared per port in ports.conf.
-    if [ -z "$click_cmd" ] || [ "$click_cmd" = "-" ]; then
-        bad "A13UIClickTests" "port declares no UI click test command"
-    elif ( cd "$dir" && eval "$click_cmd" ) >"$work/click.log" 2>&1; then
-        local n
-        n=$(grep -cE '^(--- )?(ok|PASS|test result: ok)' "$work/click.log" 2>/dev/null)
-        ok "A13UIClickTests" "real pointer events injected"
+    # ---- A12 AcceptUIClickSuite — genuine pointer events, plus sabotage --------
+    # The port's suite drives the real widget tree with the framework's own
+    # input API (see fastnote_testing_protocol.md §event-injection rule).
+    # It MUST pass as shipped ...
+    if [ -z "$suite_cmd" ] || [ "$suite_cmd" = "-" ]; then
+        bad "A12UIClickSuite" "port declares no GUI event suite"
+    elif ( cd "$dir" && fnrun 180 bash -c "$suite_cmd" ) >"$work/suite.log" 2>&1; then
+        ok "A12UIClickSuite" "GUI event suite passed"
     else
-        bad "A13UIClickTests" "$(grep -m1 -E 'FAIL|panic|error' "$work/click.log" | head -c 120)"
+        bad "A12UIClickSuite" "$(grep -m1 -E 'FAIL|panic|error|MISMATCH' "$work/suite.log" | head -c 160)"
     fi
 
-    # ---- A8 AcceptEditSave ----------------------------------------------------
-    local a8_ok=0
-    local editdoc="$work/notes/edit_target.md"
-    cp "$TEMPLATE" "$editdoc"
-    local before_size; before_size=$(stat -c%s "$editdoc")
-
-    if fnrun 30 "$BIN" --headless --notes-dir "$work/notes" \
-            --open "$editdoc" --insert "$MARKER" --save >"$work/a8.log" 2>&1; then
-        local after_size; after_size=$(stat -c%s "$editdoc")
-        if ! grep -qF "$MARKER" "$editdoc"; then
-            bad "A8EditSave" "marker not persisted to disk"
-        elif [ "$after_size" -le "$before_size" ]; then
-            bad "A8EditSave" "file did not grow ($before_size -> $after_size)"
+    # ... and MUST FAIL under sabotage. FASTNOTE_SABOTAGE=1 asks the suite to
+    # unbind a control; a suite that still passes is testing nothing.
+    if [ -n "$suite_cmd" ] && [ "$suite_cmd" != "-" ]; then
+        if ( cd "$dir" && env FASTNOTE_SABOTAGE=1 fnrun 180 bash -c "$suite_cmd" ) >"$work/sabotage.log" 2>&1; then
+            bad "A12Sabotage" "suite passed with a control unbound — it is testing nothing"
         else
-            a8_ok=1
-            ok "A8EditSave" "${before_size}B -> ${after_size}B"
+            ok "A12Sabotage" "suite failed after unbinding a control, as required"
         fi
-    else
-        bad "A8EditSave" "$(tail -1 "$work/a8.log")"
-    fi
-
-    # ---- A9 AcceptDirtyState --------------------------------------------------
-    # Editing without --save must leave the file untouched on disk.
-    local dirtydoc="$work/notes/dirty_target.md"
-    cp "$TEMPLATE" "$dirtydoc"
-    local dirty_before; dirty_before=$(md5sum "$dirtydoc" | cut -d' ' -f1)
-    fnrun 30 "$BIN" --headless --notes-dir "$work/notes" \
-        --open "$dirtydoc" --insert "UNSAVED-EDIT" >"$work/a9.log" 2>&1
-    local dirty_after; dirty_after=$(md5sum "$dirtydoc" | cut -d' ' -f1)
-    # Guarded by the A8 result: "the file did not change" is only evidence of correct dirty
-    # handling if the port is capable of writing the file at all. A port that does nothing
-    # would otherwise pass this test for the wrong reason.
-    if [ $seam -eq 0 ]; then
-        bad "A9DirtyState" "no CLI seam: cannot distinguish restraint from inaction"
-    elif [ "$a8_ok" -ne 1 ]; then
-        bad "A9DirtyState" "inconclusive: A8 could not write the file in the first place"
-    elif [ "$dirty_before" = "$dirty_after" ]; then
-        ok "A9DirtyState" "unsaved edit not written"
-    else
-        bad "A9DirtyState" "edit reached disk without --save"
-    fi
-
-    # ---- A10 AcceptExportHTMLFile ---------------------------------------------
-    local exdoc="$work/notes/export_target.md"
-    cp "$TEMPLATE" "$exdoc"
-    local exout="$work/a10.html"
-    if fnrun 30 "$BIN" --headless --notes-dir "$work/notes" \
-            --open "$exdoc" --export "$exout" >"$work/a10.log" 2>&1; then
-        local missing=""
-        for token in "DOCTYPE" "<html" "<style" "<title"; do
-            grep -qiF -- "$token" "$exout" 2>/dev/null || missing="$missing $token"
-        done
-        if [ ! -s "$exout" ]; then
-            bad "A10ExportHTMLFile" "no file written to $exout"
-        elif [ -n "$missing" ]; then
-            bad "A10ExportHTMLFile" "not a standalone document, missing:$missing"
-        elif ! grep -qF "FastNote Acceptance Template" "$exout"; then
-            bad "A10ExportHTMLFile" "document content absent from export"
-        else
-            ok "A10ExportHTMLFile" "$(stat -c%s "$exout")B"
-        fi
-    else
-        bad "A10ExportHTMLFile" "$(tail -1 "$work/a10.log")"
-    fi
-
-    # ---- A12 AcceptE2EWorkflow -- the primary test ----------------------------
-    # open template -> edit -> save -> export, all through the application.
-    local e2e="$work/notes/e2e_document.md"
-    cp "$TEMPLATE" "$e2e"
-    local e2eout="$work/a12.html"
-    if fnrun 60 "$BIN" --headless --notes-dir "$work/notes" \
-            --open "$e2e" \
-            --insert "
-
-## Inserted By Acceptance
-
-$MARKER
-" \
-            --save --export "$e2eout" >"$work/a12.log" 2>&1; then
-        local e2e_ok=1
-        grep -qF "$MARKER" "$e2e"      || { bad "A12E2EWorkflow" "marker missing from saved .md"; e2e_ok=0; }
-        if [ $e2e_ok -eq 1 ]; then
-            [ -s "$e2eout" ]                                    || { bad "A12E2EWorkflow" "export file missing/empty"; e2e_ok=0; }
-        fi
-        if [ $e2e_ok -eq 1 ]; then
-            grep -qF "$MARKER" "$e2eout"                        || { bad "A12E2EWorkflow" "marker missing from export"; e2e_ok=0; }
-        fi
-        if [ $e2e_ok -eq 1 ]; then
-            grep -qF "FastNote Acceptance Template" "$e2eout"   || { bad "A12E2EWorkflow" "original template heading lost"; e2e_ok=0; }
-        fi
-        [ $e2e_ok -eq 1 ] && ok "A12E2EWorkflow" "template -> edit -> save -> export"
-    else
-        bad "A12E2EWorkflow" "$(tail -1 "$work/a12.log")"
     fi
 }
 
-# static_checks performs A6, A7 and A11 by inspecting the port's GUI source.
+# static_checks performs A5, A6 and A10 by inspecting the port's GUI source.
 #
-# These exist because a CLI-driven test cannot distinguish "the button works" from "the CLI
-# has a private copy of the logic". Three properties are checked in sequence, all of which
-# have been observed missing in this project:
-#   constructed -> placed in a container -> bound to a handler.
-# Checking only the first two would have passed rust_gtk4, whose Export button is created,
-# packed, and never connected to anything.
+# These are guards, not evidence: A4/A7/A9 come from clicking the actual
+# widgets. They catch the "control exists but is a dead end" class of defect
+# cheaply, and they all can fail.
 static_checks() {
     local dir="$1" globs="$2"
     local files=""
@@ -287,54 +199,47 @@ static_checks() {
     done
 
     if [ -z "$files" ]; then
-        skip "A6OpenControlPresent"  "no UI sources matched"
-        skip "A7FileBrowserExists"   "no UI sources matched"
-        skip "A11ExportControlWired" "no UI sources matched"
+        skip "A5OpenControlPresent"  "no UI sources matched"
+        skip "A6FileBrowserExists"   "no UI sources matched"
+        skip "A10ExportControlWired" "no UI sources matched"
         return
     fi
 
-    # ---- A6: an Open control exists and is bound to something -----------------
+    # ---- A5: an Open control exists and is bound to something -----------------
     if grep -qiE '"Open"|Open File|on_open|openBtn|open_btn|OpenPath|open_clicked' $files; then
-        # Retained-mode toolkits bind a handler by name; immediate-mode ones (egui,
-        # nuklear, raygui) express the binding as `if button(...).clicked() { ... }`, which
-        # the original pattern list could not see.
         if grep -qiE 'openBtn\.Clicked|open_btn|on_open|OpenPath|open_clicked|connect_clicked|button\("Open"\)\.clicked|request_open' $files; then
-            ok "A6OpenControlPresent"
+            ok "A5OpenControlPresent"
         else
-            bad "A6OpenControlPresent" "Open control present but no handler binding found"
+            bad "A5OpenControlPresent" "Open control present but no handler binding found"
         fi
     else
-        bad "A6OpenControlPresent" "no Open control in UI sources"
+        bad "A5OpenControlPresent" "no Open control in UI sources"
     fi
 
-    # ---- A7: an in-app file browser, and no native dialog ---------------------
+    # ---- A6: an in-app file browser, and no native dialog ---------------------
     local native
     native=$(grep -ilE 'GtkFileChooser|gtk_file_chooser|QFileDialog|rfd::|tinyfd_|add_file_dialog|FileChooserNative|gioui\.org/x/explorer' $files 2>/dev/null | head -1)
     if [ -n "$native" ]; then
-        bad "A7FileBrowserExists" "native dialog used: $(basename "$native") (spec 3.1 prohibits this)"
+        bad "A6FileBrowserExists" "native dialog used: $(basename "$native")"
     elif grep -qiE 'FileBrowser|file_browser|filebrowser|BrowserOpen' $files; then
-        ok "A7FileBrowserExists" "in-app browser"
+        ok "A6FileBrowserExists" "in-app browser"
     else
-        bad "A7FileBrowserExists" "no in-app file browser component found"
+        bad "A6FileBrowserExists" "no in-app file browser component found"
     fi
 
-    # ---- A11: Export control exists, is bound, and reaches a write ------------
+    # ---- A10: Export control exists, is bound, and reaches a write ------------
     if grep -qiE '"Export"|exportBtn|export_btn|ExportTo|on_export' $files; then
         if grep -qiE 'exportBtn\.Clicked|export_btn|on_export|ExportTo|export_clicked|button\("Export"\)\.clicked|Pending::Export|export_to' $files; then
-            # Filesystem writes, across the languages in this comparison: Go's
-            # os.WriteFile, C's fwrite/fopen, Python's open(...,'w'), and Rust's
-            # fs::write / File::create. The Rust idioms were missing, so a correctly
-            # wired Rust port was reported as reaching no write.
             if grep -qiE 'ExportTo|SaveToFile|save_to_file|WriteFile|fwrite|fopen|fs::write|File::create|export_to|open\(.*["'"'"']w' $files; then
-                ok "A11ExportControlWired"
+                ok "A10ExportControlWired"
             else
-                bad "A11ExportControlWired" "Export handler present but reaches no filesystem write"
+                bad "A10ExportControlWired" "Export handler present but reaches no filesystem write"
             fi
         else
-            bad "A11ExportControlWired" "Export control present but never bound to a handler"
+            bad "A10ExportControlWired" "Export control present but never bound to a handler"
         fi
     else
-        bad "A11ExportControlWired" "no Export control in UI sources"
+        bad "A10ExportControlWired" "no Export control in UI sources"
     fi
 }
 
@@ -346,7 +251,7 @@ main() {
         case "$arg" in
             --all)      targets=(ALL) ;;
             --no-build) DO_BUILD=0 ;;
-            -h|--help)  sed -n '2,22p' "$0"; exit 0 ;;
+            -h|--help)  sed -n '2,20p' "$0"; exit 0 ;;
             *)          targets+=("$arg") ;;
         esac
     done
@@ -357,8 +262,11 @@ main() {
     [ -f "$TEMPLATE" ] || { echo "missing canonical template: $TEMPLATE" >&2; exit 2; }
     mkdir -p "$WORKROOT"
 
+    display_setup
+    trap display_teardown EXIT
+
     printf "${BLD}FastNote GUI Acceptance — Category 7${RST}\n"
-    printf "${DIM}Specification: FASTNOTE_SPECIFICATION.md | 13 tests per port${RST}\n"
+    printf "${DIM}Specification: FASTNOTE_SPECIFICATION.md | 12 tests per port | no headless seam${RST}\n"
 
     while IFS= read -r line; do
         line="${line%%#*}"

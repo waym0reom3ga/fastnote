@@ -54,8 +54,8 @@ WORK = ROOT / "tools" / "tmp" / "measure"
 
 # dir, binary, window-title pattern, control-map flag style
 EDITIONS = {
-    "go_gio":  ("fastnote_go_gio_ed",  "fastnote-gio", "FastNotes", "flag"),
-    "go_fyne": ("fastnote_go_fyne_ed", "fastnotes",    "FastNotes", "flag"),
+    "go_gio":  ("fastnote_go_gio_ed",  "fastnote-gio", "FastNote", "flag"),
+    "go_fyne": ("fastnote_go_fyne_ed", "fastnotes",    "FastNote", "flag"),
     "c_gtk4":  ("fastnote_c_gtk4_ed",  "fastnote",     "FastNotes", "env"),
     "rust_gtk4": ("fastnote_rust_gtk4_ed",
                   "target/release/fastnote-gtk4", "FastNotes", "env"),
