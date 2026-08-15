@@ -11,6 +11,7 @@ Usage:
 
 import argparse
 import csv
+import json
 import os
 import subprocess
 import sys
@@ -20,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 EDITIONS_DIR = ROOT / "editions"
 OUT_DIR = ROOT / "tools" / "tmp" / "qa"
+MEASUREMENTS_JSON = OUT_DIR / "results.json"
 
 sys.path.insert(0, str(ROOT / "tools" / "qa"))
 from fastnote_qa.manifest import EDITIONS
@@ -133,6 +135,38 @@ def generate_report(results):
             f"{fmt_size(r['lib_bytes'])} | **{fmt_size(r['total_bytes'])}** | {notes} |"
         )
 
+    # Timing and RAM section (if measurement data exists)
+    measurements = load_measurements()
+    if measurements:
+        lines += [
+            "",
+            "## Performance Measurements",
+            "",
+            "Measured via keyboard-driven operations with --event-file markers.",
+            "RAM = peak VmRSS sampled every10ms during each operation arc.",
+            "",
+            "| Edition | Startup | Startup RAM | Open | Open RAM | Save | Save RAM | Export HTML | Export PDF | Close | Close RAM |",
+            "|---------|---------|-------------|------|----------|------|----------|-------------|------------|-------|-----------|",
+        ]
+
+        for name in sorted(measurements.keys()):
+            m = measurements[name]
+            startup = _fmt_ms(m.get("startup_ms"))
+            startup_ram = _fmt_ram(m.get("startup_ram_kb"))
+            open_t = _fmt_ms(m.get("open_ms"))
+            open_ram = _fmt_ram(m.get("open_ram_kb"))
+            save_t = _fmt_ms(m.get("save_ms"))
+            save_ram = _fmt_ram(m.get("save_ram_kb"))
+            html_t = _fmt_ms(m.get("export_html_ms"))
+            pdf_t = _fmt_ms(m.get("export_pdf_ms"))
+            close_t = _fmt_ms(m.get("close_ms"))
+            close_ram = _fmt_ram(m.get("close_ram_kb"))
+
+            lines.append(
+                f"| {name} | {startup} | {startup_ram} | {open_t} | {open_ram} | "
+                f"{save_t} | {save_ram} | {html_t} | {pdf_t} | {close_t} | {close_ram} |"
+            )
+
     lines += [
         "",
         "## Edition Details",
@@ -164,9 +198,69 @@ def generate_report(results):
                 if notes:
                     lines.append(f"- {test['name']}: {notes}")
 
+        # Measurement data
+        m = measurements.get(r["name"])
+        if m and not m.get("error"):
+            lines.append("")
+            lines.append("**Performance:**")
+            if m.get("startup_ms"):
+                s = m["startup_ms"]
+                lines.append(f"- Startup: {s.get('median', 'N/A')} ms (peak RAM: {_fmt_ram(m.get('startup_ram_kb'))})")
+            for op, label in [("open_ms", "Open"), ("save_ms", "Save"),
+                              ("export_html_ms", "Export HTML"), ("export_pdf_ms", "Export PDF")]:
+                if m.get(op):
+                    v = m[op]
+                    ram_key = f"{op.replace('_ms', '_ram_kb')}"
+                    lines.append(f"- {label}: {v.get('median', 'N/A')} ms (peak RAM: {_fmt_ram(m.get(ram_key))})")
+            if m.get("edit_ms"):
+                v = m["edit_ms"]
+                lines.append(f"- Edit (keystroke→render): {v.get('median', 'N/A')} ms")
+            if m.get("close_ms"):
+                v = m["close_ms"]
+                lines.append(f"- Close (→PID gone): {v.get('median', 'N/A')} ms (peak RAM: {_fmt_ram(m.get('close_ram_kb'))})")
+
         lines.append("")
 
     return "\n".join(lines)
+
+
+def load_measurements():
+    """Load measurement data from results.json (produced by suite.py --measure)."""
+    if not MEASUREMENTS_JSON.exists():
+        return {}
+    try:
+        data = json.loads(MEASUREMENTS_JSON.read_text())
+        results = {}
+        for r in data.get("results", []):
+            if "error" not in r:
+                results[r["edition"]] = r
+        return results
+    except:
+        return {}
+
+
+def _fmt_ms(data):
+    """Format timing data (dict with 'median' key) to string."""
+    if not data or not isinstance(data, dict):
+        return "N/A"
+    if data.get("insufficient"):
+        return "N/A"
+    med = data.get("median")
+    if med is None:
+        return "N/A"
+    return f"{med:.0f} ms"
+
+
+def _fmt_ram(data):
+    """Format RAM data (dict with 'peak_kb' key) to string."""
+    if not data or not isinstance(data, dict):
+        return "N/A"
+    peak = data.get("peak_kb", 0)
+    if peak == 0:
+        return "N/A"
+    if peak >= 1024:
+        return f"{peak / 1024:.0f} MB"
+    return f"{peak} KB"
 
 
 def main():
