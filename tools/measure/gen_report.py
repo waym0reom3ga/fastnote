@@ -72,10 +72,11 @@ def load():
     if DB.exists():
         conn = sqlite3.connect(DB)
         rows = conn.execute("""
-            SELECT r.edition, res.case_id, res.status
-            FROM result res JOIN run r ON r.id = res.run_id
-            WHERE r.id = (SELECT MAX(r2.id) FROM run r2
-                          WHERE r2.edition = r.edition)""").fetchall()
+            SELECT res.edition, res.case_id, res.status
+            FROM result res
+            WHERE res.id IN (
+                SELECT MAX(r2.id) FROM result r2
+                GROUP BY r2.edition, r2.case_id)""").fetchall()
         conn.close()
         for edition, case_id, status in rows:
             matrix.setdefault(edition, {})[case_id] = status

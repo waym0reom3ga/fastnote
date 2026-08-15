@@ -74,7 +74,6 @@ def print_case(id_, r):
 def run_edition(args, name, store, case_filter):
     entry = manifest.entry(name)
     build_ok, build_note = build_edition(entry, args.build)
-    store.begin_run(name, build_note if not build_ok else "")
     print(f"\033[1m=== {name} ===\033[0m ({build_note})")
 
     display_ok = x11.display_ok()
@@ -195,12 +194,13 @@ def main():
               "a02 (--version) still runs\033[0m", file=sys.stderr)
 
     store = results.Store(DB)
+    store.begin_run(",".join(names))
     exit_code = 0
     for name in names:
         if not run_edition(args, name, store, case_filter):
             exit_code = 1
 
-    rows = store.latest_rows()
+    rows = store.all_latest_rows()
     if rows:
         md = results.report_markdown(rows)
         (WORK / "report.md").write_text(md)

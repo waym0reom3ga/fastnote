@@ -26,11 +26,17 @@ class Store:
             CREATE TABLE IF NOT EXISTS result (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id INTEGER NOT NULL,
+                edition TEXT NOT NULL DEFAULT '',
                 case_id TEXT NOT NULL,
                 status TEXT NOT NULL,
                 detail TEXT,
                 seconds REAL
             )""")
+        # Migrate: add edition column if missing
+        try:
+            self.conn.execute("SELECT edition FROM result LIMIT 1")
+        except sqlite3.OperationalError:
+            self.conn.execute("ALTER TABLE result ADD COLUMN edition TEXT NOT NULL DEFAULT ''")
         self.conn.commit()
         self.run_id = None
 
@@ -44,26 +50,38 @@ class Store:
     def record(self, edition, case_id, row):
         status, detail, seconds = row
         self.conn.execute(
-            "INSERT INTO result (run_id, case_id, status, detail, seconds) VALUES (?, ?, ?, ?, ?)",
-            (self.run_id, case_id, status, detail, seconds))
+            "INSERT INTO result (run_id, edition, case_id, status, detail, seconds) VALUES (?, ?, ?, ?, ?, ?)",
+            (self.run_id, edition, case_id, status, detail, seconds))
         self.conn.commit()
 
     def latest_rows(self):
+        """All results from the most recent run."""
         return self.conn.execute("""
-            SELECT r.edition, res.case_id, res.status, res.detail, res.seconds
-            FROM result res JOIN run r ON r.id = res.run_id
-            WHERE r.id = (SELECT MAX(id) FROM run)
-            ORDER BY r.edition, res.case_id""").fetchall()
+            SELECT res.edition, res.case_id, res.status, res.detail, res.seconds
+            FROM result res
+            WHERE res.run_id = (SELECT MAX(id) FROM run)
+            ORDER BY res.edition, res.case_id""").fetchall()
+
+    def all_latest_rows(self):
+        """The most recent result per (edition, case_id) across all runs."""
+        return self.conn.execute("""
+            SELECT res.edition, res.case_id, res.status, res.detail, res.seconds
+            FROM result res
+            WHERE res.id IN (
+                SELECT MAX(r2.id) FROM result r2
+                GROUP BY r2.edition, r2.case_id)
+            ORDER BY res.edition, res.case_id""").fetchall()
 
     def per_edition_latest(self):
         """The most recent run per edition: {edition: {case_id: status}}.
         Used by the comparative tableau for the capability matrix."""
         rows = self.conn.execute("""
-            SELECT r.edition, res.case_id, res.status
-            FROM result res JOIN run r ON r.id = res.run_id
-            WHERE r.id = (SELECT MAX(r2.id) FROM run r2
-                          WHERE r2.edition = r.edition)
-            ORDER BY r.edition, res.case_id""").fetchall()
+            SELECT res.edition, res.case_id, res.status
+            FROM result res
+            WHERE res.id IN (
+                SELECT MAX(r2.id) FROM result r2
+                GROUP BY r2.edition, r2.case_id)
+            ORDER BY res.edition, res.case_id""").fetchall()
         matrix = {}
         for edition, case_id, status in rows:
             matrix.setdefault(edition, {})[case_id] = status
