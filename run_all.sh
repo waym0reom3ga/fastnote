@@ -150,9 +150,14 @@ for ed in "${TARGETS[@]}"; do
 done
 echo ""
 
-# ── phase 3: run QA suite ──────────────────────────────────────────────
+# ── phase 3: measurement report (binary + libs) ────────────────────────
+echo -e "${BOLD}=== Phase 3: Measurement report ===${NC}"
+python3 "$ROOT/tools/report_aggregate.py" "${TARGETS[@]/#/--edition }" 2>&1
+echo ""
+
+# ── phase 4: QA tests ──────────────────────────────────────────────────
 if [[ "$TEST" == "true" ]]; then
-    echo -e "${BOLD}=== Phase 3: QA tests ===${NC}"
+    echo -e "${BOLD}=== Phase 4: QA tests ===${NC}"
 
     QA_ARGS=()
     if [[ ${#TARGETS[@]} -eq ${#ALL_EDITIONS[@]} ]]; then
@@ -176,8 +181,8 @@ else
     QA_EXIT=0
 fi
 
-# ── phase 4: generate JSON report ──────────────────────────────────────
-echo -e "${BOLD}=== Phase 4: Reports ===${NC}"
+# ── phase 5: generate reports ──────────────────────────────────────────
+echo -e "${BOLD}=== Phase 5: Reports ===${NC}"
 
 python3 -c "
 import json, sys
@@ -216,9 +221,9 @@ else:
     print('  No QA results found in database')
 " 2>&1
 
-# ── phase 5: capability matrix summary ─────────────────────────────────
+# ── phase 6: capability matrix summary ─────────────────────────────────
 echo ""
-echo -e "${BOLD}=== Capability Matrix ===${NC}"
+echo -e "${BOLD}=== Phase 6: Capability Matrix ===${NC}"
 python3 -c "
 import sys
 sys.path.insert(0, '$ROOT/tools/qa')
